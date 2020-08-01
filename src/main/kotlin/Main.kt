@@ -169,9 +169,13 @@ fun getSettings(file: String): Settings? {
     return Klaxon().parse<Settings>(File(file).readText())
 }
 
-val RECV_REGEX = Regex("""^\d{3} .+""")
+val LAST_REPLY_REGEX = Regex("""^\d{3} .+""")
 
-fun isSuccess(line: String): Boolean {
+fun isLastReply(line: String): Boolean {
+    return LAST_REPLY_REGEX.containsMatchIn(line)
+}
+
+fun isPositiveReply(line: String): Boolean {
     return arrayOf('2', '3').contains(line.firstOrNull() ?: '0')
 }
 
@@ -180,11 +184,11 @@ fun recvLine(reader: BufferedReader): String {
         val line = reader.readLine()?.trim() ?: throw IOException("Connection closed by foreign host.")
         println(getCurrentIdPrefix() + "recv: $line")
 
-        if (RECV_REGEX.containsMatchIn(line)) {
-            if (!isSuccess(line))
-                throw IOException(line)
+        if (isLastReply(line)) {
+            if (isPositiveReply(line))
+                return line
 
-            return line
+            throw IOException(line)
         }
     }
 }

@@ -227,13 +227,21 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
-    fun isSuccess() {
-        assertTrue(app.isSuccess("200 xxx"))
-        assertTrue(app.isSuccess("300 xxx"))
-        assertFalse(app.isSuccess("400 xxx"))
-        assertFalse(app.isSuccess("500 xxx"))
-        assertFalse(app.isSuccess("xxx 200"))
-        assertFalse(app.isSuccess("xxx 300"))
+    fun isLastReply() {
+        assertFalse(app.isLastReply("250-First line"));
+        assertFalse(app.isLastReply("250-Second line"));
+        assertFalse(app.isLastReply("250-234 Text beginning with numbers"));
+        assertTrue(app.isLastReply("250 The last line"));
+    }
+
+    @org.junit.jupiter.api.Test
+    fun isPositiveReply() {
+        assertTrue(app.isPositiveReply("200 xxx"))
+        assertTrue(app.isPositiveReply("300 xxx"))
+        assertFalse(app.isPositiveReply("400 xxx"))
+        assertFalse(app.isPositiveReply("500 xxx"))
+        assertFalse(app.isPositiveReply("xxx 200"))
+        assertFalse(app.isPositiveReply("xxx 300"))
     }
 
     private fun useSetStdout(block: () -> Unit) {
