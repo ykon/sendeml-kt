@@ -9,7 +9,7 @@ import java.io.*
 typealias SendCmd = (String) -> String
 
 internal class MainKtTest {
-    fun makeSimpleMail(): String {
+    private fun makeSimpleMail(): String {
         return """From: a001 <a001@ah62.example.jp>
 Subject: test
 To: a002@ah62.example.jp
@@ -25,7 +25,7 @@ Content-Language: en-US
 test""";
     }
 
-    fun getMailByteArray(mail: String): ByteArray {
+    private fun getMailByteArray(mail: String): ByteArray {
         return mail.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
     }
 
@@ -113,7 +113,7 @@ test""";
         assertTrue(line.length <= 76)
     }
 
-    fun makeByteArray(vararg cs: Char): ByteArray {
+    private fun makeByteArray(vararg cs: Char): ByteArray {
         return cs.map { it.toByte() }.toByteArray()
     }
 
@@ -226,7 +226,7 @@ test""";
         assertFalse(app.isSuccess("xxx 300"))
     }
 
-    fun useSetStdout(block: () -> Unit) {
+    private fun useSetStdout(block: () -> Unit) {
         val origOut = System.out
         try {
             block()
@@ -235,21 +235,27 @@ test""";
         }
     }
 
+    private fun getStdout(block: () -> Unit): String {
+        val stdOutStream = ByteArrayOutputStream()
+        useSetStdout() {
+            System.setOut(PrintStream(stdOutStream))
+            block()
+        }
+        return stdOutStream.toString()
+    }
+
     @org.junit.jupiter.api.Test
     fun sendRawBytes() {
         val file = createTempFile()
         val mail = getMailByteArray(makeSimpleMail())
         file.writeBytes(mail)
 
-        useSetStdout {
-            val stdOutStream = ByteArrayOutputStream()
-            System.setOut(PrintStream(stdOutStream))
-
-            val fileOutStream = ByteArrayOutputStream()
+        val fileOutStream = ByteArrayOutputStream()
+        val sendLine = getStdout() {
             app.sendRawBytes(fileOutStream, file.path, false, false)
-            assertEquals("send: ${file.absolutePath}\r\n", stdOutStream.toString())
-            assertTrue(mail.contentEquals(fileOutStream.toByteArray()))
         }
+        assertEquals("send: ${file.absolutePath}\r\n", sendLine)
+        assertTrue(mail.contentEquals(fileOutStream.toByteArray()))
 
         val fileOutStream2 = ByteArrayOutputStream()
         app.sendRawBytes(fileOutStream2, file.path, true, true)
@@ -258,14 +264,11 @@ test""";
 
     @org.junit.jupiter.api.Test
     fun recvLine() {
-        useSetStdout {
-            val outStream = ByteArrayOutputStream()
-            System.setOut(PrintStream(outStream))
-
+        val recvLine = getStdout() {
             var bufReader = BufferedReader(StringReader("250 OK\r\n"))
             assertEquals("250 OK", app.recvLine(bufReader))
-            assertEquals("recv: 250 OK\r\n", outStream.toString())
         }
+        assertEquals("recv: 250 OK\r\n", recvLine)
 
         var bufReader2 = BufferedReader(StringReader(""))
         org.junit.jupiter.api.assertThrows<IOException> { app.recvLine(bufReader2) }
@@ -277,24 +280,21 @@ test""";
     @org.junit.jupiter.api.Test
     fun sendLine() {
         fun test(cmd: String, stdout_expected: String, writer_expected: String) {
-            val outStream = ByteArrayOutputStream()
-            System.setOut(PrintStream(outStream))
-
             val strWriter = StringWriter()
             val bufWriter = BufferedWriter(strWriter)
 
-            app.sendLine(bufWriter, cmd)
-            assertEquals(stdout_expected, outStream.toString())
+            val sendLine = getStdout {
+                app.sendLine(bufWriter, cmd)
+            }
+            assertEquals(stdout_expected, sendLine)
             assertEquals(writer_expected, strWriter.toString())
         }
 
-        useSetStdout {
-            test("EHLO localhost", "send: EHLO localhost\r\n", "EHLO localhost\r\n")
-            test("\r\n.", "send: <CRLF>.\r\n", "\r\n.\r\n")
-        }
+        test("EHLO localhost", "send: EHLO localhost\r\n", "EHLO localhost\r\n")
+        test("\r\n.", "send: <CRLF>.\r\n", "\r\n.\r\n")
     }
 
-    fun makeTestSendCmd(expected: String): SendCmd {
+    private fun makeTestSendCmd(expected: String): SendCmd {
         return { cmd ->
             assertEquals(expected, cmd)
             cmd
@@ -341,5 +341,22 @@ test""";
     @org.junit.jupiter.api.Test
     fun sendRset() {
         app.sendRset(makeTestSendCmd("RSET"))
+    }
+
+    @org.junit.jupiter.api.Test
+    fun printVersion() {
+        val version = getStdout {
+            app.printVersion()
+        }
+        assertTrue(version.contains("Version:"))
+        assertTrue(version.contains(app.VERSION.toString()))
+    }
+
+    @org.junit.jupiter.api.Test
+    fun printUsage() {
+        val usage = getStdout {
+            app.printUsage()
+        }
+        assertTrue(usage.contains("Usage:"))
     }
 }
