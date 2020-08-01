@@ -14,7 +14,7 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-val VERSION = BigDecimal("1.0")
+val VERSION = BigDecimal("1.1")
 const val CRLF = "\r\n"
 
 fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
