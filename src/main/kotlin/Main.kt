@@ -73,8 +73,9 @@ fun isMessageIdLine(line: String): Boolean {
     return MESSAGE_ID_REGEX.containsMatchIn(line)
 }
 
-fun makeRandomMessageIdLine(length: Int = 62): String {
+fun makeRandomMessageIdLine(): String {
     val chars =  ('a'..'z') + ('A'..'Z') + ('0'..'9')
+    val length = 62
     return "Message-ID: <${(1..length).map { chars.random() }.joinToString("")}>"
 }
 
@@ -86,12 +87,24 @@ fun isFirstM(line: ByteArray): Boolean {
     return line.firstOrNull() == 'M'.toByte()
 }
 
+private fun findLineIndex(lines: List<ByteArray>, firstPred: (ByteArray) -> Boolean, linePred: (String) -> Boolean): Int {
+    return lines.indexOfFirst { firstPred(it) && linePred(it.toString(Charsets.UTF_8)) }
+}
+
 fun findDateLineIndex(lines: List<ByteArray>): Int {
-    return lines.indexOfFirst { isFirstD(it) && isDateLine(it.toString(Charsets.UTF_8)) }
+    return findLineIndex(lines, ::isFirstD, ::isDateLine)
 }
 
 fun findMessageIdLineIndex(lines: List<ByteArray>): Int {
-    return lines.indexOfFirst { isFirstM(it) && isMessageIdLine(it.toString(Charsets.UTF_8)) }
+    return findLineIndex(lines, ::isFirstM, ::isMessageIdLine)
+}
+
+private fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, find_line: (List<ByteArray>) -> Int, make_line: () -> String): Unit {
+    if (update) {
+        val idx = find_line(lines)
+        if (idx != -1)
+            lines[idx] = make_line().toByteArray(Charsets.UTF_8)
+    }
 }
 
 fun replaceRawLines(lines: List<ByteArray>, updateDate: Boolean, updateMessageId: Boolean): List<ByteArray> {
@@ -100,16 +113,8 @@ fun replaceRawLines(lines: List<ByteArray>, updateDate: Boolean, updateMessageId
 
     val repsLines = lines.toMutableList()
 
-    if (updateDate) {
-        val dateIdx = findDateLineIndex(repsLines)
-        if (dateIdx != -1)
-            repsLines[dateIdx] = makeNowDateLine().toByteArray(Charsets.UTF_8)
-    }
-    if (updateMessageId) {
-        val midIdx = findMessageIdLineIndex(repsLines)
-        if (midIdx != -1)
-            repsLines[midIdx] = makeRandomMessageIdLine().toByteArray(Charsets.UTF_8)
-    }
+    replaceLine(repsLines, updateDate, ::findDateLineIndex, ::makeNowDateLine)
+    replaceLine(repsLines, updateMessageId, ::findMessageIdLineIndex, ::makeRandomMessageIdLine)
 
     return repsLines
 }
