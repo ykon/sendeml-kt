@@ -55,48 +55,52 @@ fun getRawLines(fileBuf: ByteArray): List<ByteArray> {
     }
 }
 
-val DATE_REGEX = Regex("""^Date: [\S ]+""")
+val DATE_BYTES = "Date:".toByteArray(Charsets.UTF_8)
+val MESSAGE_ID_BYTES = "Message-ID:".toByteArray(Charsets.UTF_8)
 
-fun isDateLine(line: String): Boolean {
-    return DATE_REGEX.containsMatchIn(line)
+fun matchHeaderField(line: ByteArray, header: ByteArray): Boolean {
+    if (line.size < header.size)
+        return false
+
+    var i = 0
+    while (i < header.size) {
+        if (header[i] != line[i])
+            return false
+        i += 1
+    }
+    return true
+}
+
+fun isDateLine(line: ByteArray): Boolean {
+    return matchHeaderField(line, DATE_BYTES)
 }
 
 fun makeNowDateLine(): String {
     val time = OffsetDateTime.now()
     val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US)
-    return "Date: " + time.format(formatter)
+    return "Date: " + time.format(formatter) + CRLF
 }
 
-val MESSAGE_ID_REGEX = Regex("""^Message-ID: [\S]+""")
-
-fun isMessageIdLine(line: String): Boolean {
-    return MESSAGE_ID_REGEX.containsMatchIn(line)
+fun isMessageIdLine(line: ByteArray): Boolean {
+    return matchHeaderField(line, MESSAGE_ID_BYTES)
 }
 
 fun makeRandomMessageIdLine(): String {
     val chars =  ('a'..'z') + ('A'..'Z') + ('0'..'9')
     val length = 62
-    return "Message-ID: <${(1..length).map { chars.random() }.joinToString("")}>"
+    return "Message-ID: <${(1..length).map { chars.random() }.joinToString("")}>" + CRLF
 }
 
-fun isFirstD(line: ByteArray): Boolean {
-    return line.firstOrNull() == 'D'.toByte()
-}
-
-fun isFirstM(line: ByteArray): Boolean {
-    return line.firstOrNull() == 'M'.toByte()
-}
-
-private fun findLineIndex(lines: List<ByteArray>, firstPred: (ByteArray) -> Boolean, linePred: (String) -> Boolean): Int {
-    return lines.indexOfFirst { firstPred(it) && linePred(it.toString(Charsets.UTF_8)) }
+private fun findLineIndex(lines: List<ByteArray>, linePred: (ByteArray) -> Boolean): Int {
+    return lines.indexOfFirst(linePred)
 }
 
 fun findDateLineIndex(lines: List<ByteArray>): Int {
-    return findLineIndex(lines, ::isFirstD, ::isDateLine)
+    return findLineIndex(lines, ::isDateLine)
 }
 
 fun findMessageIdLineIndex(lines: List<ByteArray>): Int {
-    return findLineIndex(lines, ::isFirstM, ::isMessageIdLine)
+    return findLineIndex(lines, ::isMessageIdLine)
 }
 
 private fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, find_line: (List<ByteArray>) -> Int, make_line: () -> String): Unit {

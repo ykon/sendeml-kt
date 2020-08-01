@@ -86,51 +86,61 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
+    fun matchHeaderField() {
+        val test = { s1: String, s2: String -> app.matchHeaderField(s1.toByteArray(Charsets.UTF_8), s2.toByteArray(Charsets.UTF_8)) }
+
+        assertTrue(test("Test:", "Test:"));
+        assertTrue(test("Test: ", "Test:"));
+        assertTrue(test("Test:x", "Test:"));
+
+        assertFalse(test("", "Test:"));
+        assertFalse(test("T", "Test:"));
+        assertFalse(test("Test", "Test:"));
+    }
+
+    @org.junit.jupiter.api.Test
     fun isDateLine() {
-        assertTrue(app.isDateLine("Date: xxx"))
-        assertFalse(app.isDateLine("xxx: Date"))
-        assertFalse(app.isDateLine("X-Date: xxx"))
+        val test = { s: String -> app.isDateLine(s.toByteArray(Charsets.UTF_8)) }
+
+        assertTrue(test("Date: xxx"))
+        assertTrue(test("Date:xxx"))
+        assertTrue(test("Date:"))
+        assertTrue(test("Date:   "))
+
+        assertFalse(test(""))
+        assertFalse(test("xxx: Date"))
+        assertFalse(test("X-Date: xxx"))
     }
 
     @org.junit.jupiter.api.Test
     fun makeNowDateLine() {
         val line = app.makeNowDateLine()
         assertTrue(line.startsWith("Date: "))
-        assertTrue(line.length <= 76)
+        assertTrue(line.endsWith(app.CRLF))
+        assertTrue(line.length <= 80)
     }
 
     @org.junit.jupiter.api.Test
     fun isMessageIdLine() {
-        assertTrue(app.isMessageIdLine("Message-ID: xxx"))
-        assertFalse(app.isMessageIdLine("xxx: Message-ID"))
-        assertFalse(app.isMessageIdLine("X-Message-ID xxx"))
+        val test = { s: String -> app.isMessageIdLine(s.toByteArray(Charsets.UTF_8)) }
+
+        assertTrue(test("Message-ID: xxx"))
+        assertTrue(test("Message-ID:xxx"))
+        assertTrue(test("Message-ID:"))
+        assertTrue(test("Message-ID:   "))
+
+        assertFalse(test(""))
+        assertFalse(test("Message-ID"))
+        assertFalse(test("xxx: Message-ID"))
+        assertFalse(test("X-Message-ID xxx"))
     }
 
     @org.junit.jupiter.api.Test
     fun makeRandomMessageIdLine() {
         val line = app.makeRandomMessageIdLine()
         assertTrue(line.startsWith("Message-ID: "))
-        assertTrue(line.length <= 76)
-    }
-
-    private fun makeByteArray(vararg cs: Char): ByteArray {
-        return cs.map { it.toByte() }.toByteArray()
-    }
-
-    @org.junit.jupiter.api.Test
-    fun isFirstD() {
-        assertTrue(app.isFirstD(makeByteArray('D', 'A', 'B')))
-        assertTrue(app.isFirstD(makeByteArray('D', 'B', 'A')))
-        assertFalse(app.isFirstD(makeByteArray('A', 'B', 'D')))
-        assertFalse(app.isFirstD(makeByteArray('B', 'A', 'D')))
-    }
-
-    @org.junit.jupiter.api.Test
-    fun isFirstM() {
-        assertTrue(app.isFirstM(makeByteArray('M', 'A', 'B')))
-        assertTrue(app.isFirstM(makeByteArray('M', 'B', 'A')))
-        assertFalse(app.isFirstM(makeByteArray('A', 'B', 'M')))
-        assertFalse(app.isFirstM(makeByteArray('B', 'A', 'M')))
+        assertTrue(line.endsWith(app.CRLF))
+        assertTrue(line.length <= 80)
     }
 
     @org.junit.jupiter.api.Test
