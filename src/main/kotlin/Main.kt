@@ -18,11 +18,9 @@ val VERSION = BigDecimal("1.1")
 const val CRLF = "\r\n"
 
 fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
-    var i = offset
-    while (i < fileBuf.size) {
+    for (i in offset until fileBuf.size) {
         if (fileBuf[i] == '\n'.toByte())
             return i
-        i += 1
     }
     return -1
 }
@@ -42,7 +40,7 @@ fun findAllLfIndices(fileBuf: ByteArray): List<Int> {
 
 fun getRawLines(fileBuf: ByteArray): List<ByteArray> {
     var offset = 0
-    return findAllLfIndices(fileBuf).plus(fileBuf.size - 1).map {
+    return findAllLfIndices(fileBuf).plus(fileBuf.lastIndex).map {
         val line = fileBuf.copyOfRange(offset, it + 1)
         offset = it + 1
         return@map line
@@ -56,12 +54,11 @@ fun matchHeaderField(line: ByteArray, header: ByteArray): Boolean {
     if (line.size < header.size)
         return false
 
-    var i = 0
-    while (i < header.size) {
+    for (i in header.indices) {
         if (header[i] != line[i])
             return false
-        i += 1
     }
+
     return true
 }
 
@@ -85,34 +82,22 @@ fun makeRandomMessageIdLine(): String {
     return "Message-ID: <${(1..length).map { chars.random() }.joinToString("")}>" + CRLF
 }
 
-private fun findLineIndex(lines: List<ByteArray>, linePred: (ByteArray) -> Boolean): Int {
-    return lines.indexOfFirst(linePred)
-}
-
-fun findDateLineIndex(lines: List<ByteArray>): Int {
-    return findLineIndex(lines, ::isDateLine)
-}
-
-fun findMessageIdLineIndex(lines: List<ByteArray>): Int {
-    return findLineIndex(lines, ::isMessageIdLine)
-}
-
 fun replaceRawLines(lines: List<ByteArray>, updateDate: Boolean, updateMessageId: Boolean): List<ByteArray> {
     if (!updateDate && !updateMessageId)
         return lines
 
     val repsLines = lines.toMutableList()
 
-    fun replaceLine(update: Boolean, findLine: (List<ByteArray>) -> Int, makeLine: () -> String): Unit {
+    fun replaceLine(update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): Unit {
         if (update) {
-            val idx = findLine(lines)
+            val idx = lines.indexOfFirst(matchLine)
             if (idx != -1)
                 repsLines[idx] = makeLine().toByteArray(Charsets.UTF_8)
         }
     }
 
-    replaceLine(updateDate, ::findDateLineIndex, ::makeNowDateLine)
-    replaceLine(updateMessageId, ::findMessageIdLineIndex, ::makeRandomMessageIdLine)
+    replaceLine(updateDate, ::isDateLine, ::makeNowDateLine)
+    replaceLine(updateMessageId, ::isMessageIdLine, ::makeRandomMessageIdLine)
 
     return repsLines
 }
@@ -170,7 +155,10 @@ fun isLastReply(line: String): Boolean {
 }
 
 fun isPositiveReply(line: String): Boolean {
-    return arrayOf('2', '3').contains(line.firstOrNull() ?: '0')
+    return when (line.firstOrNull() ?: '0') {
+        '2', '3' -> true
+        else -> false
+    }
 }
 
 fun recvLine(reader: BufferedReader): String {

@@ -46,9 +46,9 @@ test""";
         assertEquals(49, indices[1])
         assertEquals(75, indices[2])
 
-        assertEquals(390, indices[indices.size - 3])
-        assertEquals(415, indices[indices.size - 2])
-        assertEquals(417, indices[indices.size - 1])
+        assertEquals(390, indices[indices.lastIndex - 2])
+        assertEquals(415, indices[indices.lastIndex - 1])
+        assertEquals(417, indices[indices.lastIndex])
     }
 
     @org.junit.jupiter.api.Test
@@ -61,9 +61,9 @@ test""";
         assertEquals("Subject: test\r\n", lines[1].toString(Charsets.UTF_8))
         assertEquals("To: a002@ah62.example.jp\r\n", lines[2].toString(Charsets.UTF_8))
 
-        assertEquals("Content-Language: en-US\r\n", lines[lines.size - 3].toString(Charsets.UTF_8))
-        assertEquals("\r\n", lines[lines.size - 2].toString(Charsets.UTF_8))
-        assertEquals("test", lines[lines.size - 1].toString(Charsets.UTF_8))
+        assertEquals("Content-Language: en-US\r\n", lines[lines.lastIndex - 2].toString(Charsets.UTF_8))
+        assertEquals("\r\n", lines[lines.lastIndex - 1].toString(Charsets.UTF_8))
+        assertEquals("test", lines[lines.lastIndex].toString(Charsets.UTF_8))
     }
 
     @org.junit.jupiter.api.Test
@@ -122,28 +122,6 @@ test""";
         assertTrue(line.startsWith("Message-ID: "))
         assertTrue(line.endsWith(app.CRLF))
         assertTrue(line.length <= 80)
-    }
-
-    @org.junit.jupiter.api.Test
-    fun findDateLineIndex() {
-        val mail = getMailByteArray(makeSimpleMail())
-        val lines = app.getRawLines(mail)
-        assertEquals(4, app.findDateLineIndex(lines))
-
-        val mutLines = lines.toMutableList()
-        mutLines.removeAt(4)
-        assertEquals(-1, app.findDateLineIndex(mutLines))
-    }
-
-    @org.junit.jupiter.api.Test
-    fun findMessageIdLineIndex() {
-        val mail = getMailByteArray(makeSimpleMail())
-        val lines = app.getRawLines(mail)
-        assertEquals(3, app.findMessageIdLineIndex(lines))
-
-        val mutLines = lines.toMutableList()
-        mutLines.removeAt(3)
-        assertEquals(-1, app.findMessageIdLineIndex(mutLines))
     }
 
     @org.junit.jupiter.api.Test
