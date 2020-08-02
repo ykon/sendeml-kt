@@ -97,22 +97,22 @@ fun findMessageIdLineIndex(lines: List<ByteArray>): Int {
     return findLineIndex(lines, ::isMessageIdLine)
 }
 
-private fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, find_line: (List<ByteArray>) -> Int, make_line: () -> String): Unit {
-    if (update) {
-        val idx = find_line(lines)
-        if (idx != -1)
-            lines[idx] = make_line().toByteArray(Charsets.UTF_8)
-    }
-}
-
 fun replaceRawLines(lines: List<ByteArray>, updateDate: Boolean, updateMessageId: Boolean): List<ByteArray> {
     if (!updateDate && !updateMessageId)
         return lines
 
     val repsLines = lines.toMutableList()
 
-    replaceLine(repsLines, updateDate, ::findDateLineIndex, ::makeNowDateLine)
-    replaceLine(repsLines, updateMessageId, ::findMessageIdLineIndex, ::makeRandomMessageIdLine)
+    fun replaceLine(update: Boolean, findLine: (List<ByteArray>) -> Int, makeLine: () -> String): Unit {
+        if (update) {
+            val idx = findLine(lines)
+            if (idx != -1)
+                repsLines[idx] = makeLine().toByteArray(Charsets.UTF_8)
+        }
+    }
+
+    replaceLine(updateDate, ::findDateLineIndex, ::makeNowDateLine)
+    replaceLine(updateMessageId, ::findMessageIdLineIndex, ::makeRandomMessageIdLine)
 
     return repsLines
 }
