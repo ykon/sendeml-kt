@@ -40,16 +40,10 @@ fun findAllLfIndices(fileBuf: ByteArray): List<Int> {
     }
 }
 
-fun copyNew(srcBuf: ByteArray, offset: Int, endIndex: Int): ByteArray {
-    val destBuf = ByteArray(endIndex - offset)
-    srcBuf.copyInto(destBuf, 0, offset, endIndex)
-    return destBuf
-}
-
 fun getRawLines(fileBuf: ByteArray): List<ByteArray> {
     var offset = 0
     return findAllLfIndices(fileBuf).plus(fileBuf.size - 1).map {
-        val line = copyNew(fileBuf, offset, it + 1)
+        val line = fileBuf.copyOfRange(offset, it + 1)
         offset = it + 1
         return@map line
     }

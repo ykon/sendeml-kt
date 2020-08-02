@@ -52,25 +52,6 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
-    fun copyNew() {
-        val mail = getMailByteArray(makeSimpleMail())
-        val buf = app.copyNew(mail, 0, 10)
-
-        assertEquals(10, buf.size)
-        assertEquals(mail[0], buf[0])
-        assertEquals(mail[1], buf[1])
-        assertEquals(mail[2], buf[2])
-
-        assertEquals(mail[buf.size - 3], buf[buf.size - 3])
-        assertEquals(mail[buf.size - 2], buf[buf.size - 2])
-        assertEquals(mail[buf.size - 1], buf[buf.size - 1])
-
-        buf[0] = 0
-        assertEquals(0, buf[0])
-        assertNotEquals(0, mail[0])
-    }
-
-    @org.junit.jupiter.api.Test
     fun getRawLines() {
         val mail = getMailByteArray(makeSimpleMail())
         val lines = app.getRawLines(mail)
