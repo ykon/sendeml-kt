@@ -336,4 +336,20 @@ test""";
         }
         assertTrue(usage.contains("Usage:"))
     }
+
+    @org.junit.jupiter.api.Test
+    fun checkSettings() {
+        fun checkNoKey(key: String) {
+            val json = app.makeJsonSample()
+            val noKey = Regex(key).replaceFirst(json, "X-$key")
+            app.checkSettings(app.getSettingsFromText(noKey)!!)
+        }
+
+        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("smtpHost") }
+        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("smtpPort") }
+        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("fromAddress") }
+        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("toAddress") }
+        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("emlFile") }
+        org.junit.jupiter.api.assertDoesNotThrow { checkNoKey("testKey") }
+    }
 }

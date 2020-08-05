@@ -131,21 +131,23 @@ fun sendRawBytes(output: OutputStream, file: String, updateDate: Boolean, update
     output.flush()
 }
 
-fun ByteArray.toHexString() = joinToString("") { "%02x".format(it) }
-
 data class Settings (
-    val smtpHost: String,
-    val smtpPort: Int,
-    val fromAddress: String,
-    val toAddress: List<String>,
-    val emlFile: List<String>,
-    val updateDate: Boolean,
-    val updateMessageId: Boolean,
-    val useParallel: Boolean
+    val smtpHost: String? = null,
+    val smtpPort: Int? = null,
+    val fromAddress: String? = null,
+    val toAddress: List<String>? = null,
+    val emlFile: List<String>? = null,
+    val updateDate: Boolean = true,
+    val updateMessageId: Boolean = true,
+    val useParallel: Boolean = false
 )
 
+fun getSettingsFromText(text: String): Settings? {
+    return Klaxon().parse<Settings>(text)
+}
+
 fun getSettings(file: String): Settings? {
-    return Klaxon().parse<Settings>(File(file).readText())
+    return getSettingsFromText(File(file).readText())
 }
 
 val LAST_REPLY_REGEX = Regex("""^\d{3} .+""")
@@ -223,7 +225,7 @@ fun sendRset(send: SendCmd): Unit {
 
 fun sendMessages(settings: Settings, emlFiles: List<String>): Unit {
     val addr = InetAddress.getByName(settings.smtpHost)
-    Socket(addr, settings.smtpPort).use { socket ->
+    Socket(addr, settings.smtpPort!!).use { socket ->
         socket.soTimeout = 1000
 
         val input = socket.getInputStream()
@@ -240,7 +242,7 @@ fun sendMessages(settings: Settings, emlFiles: List<String>): Unit {
         var mailSent = false
         for (file in emlFiles) {
             if (!File(file).exists()) {
-                println("$file: EML file does not exists")
+                println("$file: EML file does not exist")
                 continue
             }
 
@@ -249,8 +251,8 @@ fun sendMessages(settings: Settings, emlFiles: List<String>): Unit {
                 sendRset(send)
             }
 
-            sendFrom(send, settings.fromAddress)
-            sendRcptTo(send, settings.toAddress)
+            sendFrom(send, settings.fromAddress!!)
+            sendRcptTo(send, settings.toAddress!!)
             sendData(send)
             sendRawBytes(output, file, settings.updateDate, settings.updateMessageId)
             sendCrLfDot(send)
@@ -297,6 +299,20 @@ fun printVersion() {
     println("SendEML / Version: $VERSION")
 }
 
+fun checkSettings(settings: Settings): Unit {
+    val key = when {
+        settings.smtpHost == null -> "smtpHost"
+        settings.smtpPort == null -> "smtpPort"
+        settings.fromAddress == null -> "fromAddress"
+        settings.toAddress == null -> "toAddress"
+        settings.emlFile == null -> "emlFile"
+        else -> ""
+    }
+
+    if (key.isNotEmpty())
+        throw IOException("$key key does not exist")
+}
+
 fun main(args: Array<String>) {
     if (args.isEmpty()) {
         printUsage()
@@ -310,21 +326,19 @@ fun main(args: Array<String>) {
 
     for (json_file in args) {
         if (!File(json_file).exists()) {
-            println("$json_file: Json file does not exists")
+            println("$json_file: Json file does not exist")
             continue
         }
 
         try {
-            val settings = getSettings(json_file)
-            if (settings != null) {
-                if (settings.useParallel) {
-                    useParallel = true
-                    settings.emlFile.parallelStream().forEach { sendOneMessage(settings, it) }
-                } else {
-                    sendMessages(settings, settings.emlFile);
-                }
+            val settings = getSettings(json_file) ?: throw IOException("Failed to parse")
+            checkSettings(settings)
+
+            if (settings.useParallel) {
+                useParallel = true
+                settings.emlFile!!.parallelStream().forEach { sendOneMessage(settings, it) }
             } else {
-                println("$json_file: Failed to parse?")
+                sendMessages(settings, settings.emlFile!!);
             }
         } catch (e: Exception) {
             println("$json_file: ${e.message}")
