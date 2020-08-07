@@ -26,7 +26,6 @@ fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
 
 fun findAllLfIndices(fileBuf: ByteArray): List<Int> {
     val indices = mutableListOf<Int>()
-
     var offset = 0
     while (true) {
         val idx = findLfIndex(fileBuf, offset)
@@ -176,18 +175,18 @@ fun recvLine(reader: BufferedReader): String {
     }
 }
 
-fun sendLine(writer: BufferedWriter, cmd: String): Unit {
+fun sendLine(output: OutputStream, cmd: String): Unit {
     println(getCurrentIdPrefix() + "send: " + if (cmd == "$CRLF.") "<CRLF>." else cmd)
 
-    writer.write(cmd + CRLF)
-    writer.flush()
+    output.write((cmd + CRLF).toByteArray())
+    output.flush()
 }
 
 typealias SendCmd = (String) -> String
 
-fun makeSendCmd(reader: BufferedReader, writer: BufferedWriter): SendCmd {
+fun makeSendCmd(reader: BufferedReader, output: OutputStream): SendCmd {
     return { cmd ->
-        sendLine(writer, cmd)
+        sendLine(output, cmd)
         recvLine(reader)
     }
 }
@@ -226,13 +225,9 @@ fun sendMessages(settings: Settings, emlFiles: List<String>): Unit {
     Socket(addr, settings.smtpPort!!).use { socket ->
         socket.soTimeout = 1000
 
-        val input = socket.getInputStream()
+        val bufReader = BufferedReader(InputStreamReader(socket.getInputStream()))
         val output = socket.getOutputStream()
-
-        val bufWriter = BufferedWriter(OutputStreamWriter(output))
-        val bufReader = BufferedReader(InputStreamReader(input))
-
-        val send = makeSendCmd(bufReader, bufWriter)
+        val send = makeSendCmd(bufReader, output)
 
         recvLine(bufReader)
         sendHello(send)

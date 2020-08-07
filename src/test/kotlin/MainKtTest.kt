@@ -257,14 +257,12 @@ test""";
     @org.junit.jupiter.api.Test
     fun sendLine() {
         fun test(cmd: String, stdout_expected: String, writer_expected: String) {
-            val strWriter = StringWriter()
-            val bufWriter = BufferedWriter(strWriter)
-
+            val output = ByteArrayOutputStream()
             val sendLine = getStdout {
-                app.sendLine(bufWriter, cmd)
+                app.sendLine(output, cmd)
             }
             assertEquals(stdout_expected, sendLine)
-            assertEquals(writer_expected, strWriter.toString())
+            assertEquals(writer_expected, output.toString(Charsets.UTF_8))
         }
 
         test("EHLO localhost", "send: EHLO localhost\r\n", "EHLO localhost\r\n")
