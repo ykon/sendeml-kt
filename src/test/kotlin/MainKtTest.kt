@@ -231,7 +231,7 @@ test""";
         val sendLine = getStdout() {
             app.sendRawBytes(fileOutStream, file.path, false, false)
         }
-        assertEquals("send: ${file.absolutePath}\r\n", sendLine)
+        assertEquals("send: ${file.path}\r\n", sendLine)
         assertTrue(mail.contentEquals(fileOutStream.toByteArray()))
 
         val fileOutStream2 = ByteArrayOutputStream()

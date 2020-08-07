@@ -121,10 +121,9 @@ fun getCurrentIdPrefix(): String {
 }
 
 fun sendRawBytes(output: OutputStream, file: String, updateDate: Boolean, updateMessageId: Boolean): Unit {
-    val fileObj = File(file)
-    println(getCurrentIdPrefix() + "send: ${fileObj.absolutePath}")
+    println(getCurrentIdPrefix() + "send: $file")
 
-    val buf = replaceRawBytes(fileObj.readBytes(), updateDate, updateMessageId)
+    val buf = replaceRawBytes(File(file).readBytes(), updateDate, updateMessageId)
     output.write(buf)
     output.flush()
 }
