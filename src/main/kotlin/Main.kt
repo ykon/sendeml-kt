@@ -7,14 +7,13 @@ package app
 
 import com.beust.klaxon.Klaxon
 import java.io.*
-import java.math.BigDecimal
 import java.net.InetAddress
 import java.net.Socket
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-val VERSION = BigDecimal("1.2")
+const val VERSION = 1.2
 const val CRLF = "\r\n"
 
 fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
@@ -27,14 +26,15 @@ fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
 
 fun findAllLfIndices(fileBuf: ByteArray): List<Int> {
     val indices = mutableListOf<Int>()
-    var i = 0
+
+    var offset = 0
     while (true) {
-        i = findLfIndex(fileBuf, i)
-        if (i == -1)
+        val idx = findLfIndex(fileBuf, offset)
+        if (idx == -1)
             return indices
 
-        indices.add(i)
-        i += 1
+        indices.add(idx)
+        offset = idx + 1
     }
 }
 
@@ -79,27 +79,26 @@ fun isMessageIdLine(line: ByteArray): Boolean {
 fun makeRandomMessageIdLine(): String {
     val chars =  ('a'..'z') + ('A'..'Z') + ('0'..'9')
     val length = 62
-    return "Message-ID: <${(1..length).map { chars.random() }.joinToString("")}>" + CRLF
+    val randStr = (1..length).map { chars.random() }.joinToString("")
+    return "Message-ID: <$randStr>$CRLF"
 }
 
 fun replaceRawLines(lines: List<ByteArray>, updateDate: Boolean, updateMessageId: Boolean): List<ByteArray> {
     if (!updateDate && !updateMessageId)
         return lines
 
-    val repsLines = lines.toMutableList()
-
-    fun replaceLine(update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): Unit {
+    fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): Unit {
         if (update) {
             val idx = lines.indexOfFirst(matchLine)
             if (idx != -1)
-                repsLines[idx] = makeLine().toByteArray(Charsets.UTF_8)
+                lines[idx] = makeLine().toByteArray(Charsets.UTF_8)
         }
     }
 
-    replaceLine(updateDate, ::isDateLine, ::makeNowDateLine)
-    replaceLine(updateMessageId, ::isMessageIdLine, ::makeRandomMessageIdLine)
-
-    return repsLines
+    val replLines = lines.toMutableList()
+    replaceLine(replLines, updateDate, ::isDateLine, ::makeNowDateLine)
+    replaceLine(replLines, updateMessageId, ::isMessageIdLine, ::makeRandomMessageIdLine)
+    return replLines
 }
 
 fun concatRawLines(lines: List<ByteArray>): ByteArray {
@@ -165,7 +164,7 @@ fun isPositiveReply(line: String): Boolean {
 
 fun recvLine(reader: BufferedReader): String {
     while (true) {
-        val line = reader.readLine()?.trim() ?: throw IOException("Connection closed by foreign host.")
+        val line = reader.readLine()?.trim() ?: throw IOException("Connection closed by foreign host")
         println(getCurrentIdPrefix() + "recv: $line")
 
         if (isLastReply(line)) {
@@ -180,8 +179,7 @@ fun recvLine(reader: BufferedReader): String {
 fun sendLine(writer: BufferedWriter, cmd: String): Unit {
     println(getCurrentIdPrefix() + "send: " + if (cmd == "$CRLF.") "<CRLF>." else cmd)
 
-    writer.write(cmd)
-    writer.write(CRLF)
+    writer.write(cmd + CRLF)
     writer.flush()
 }
 
@@ -313,6 +311,21 @@ fun checkSettings(settings: Settings): Unit {
         throw IOException("$key key does not exist")
 }
 
+fun procJsonFile(json_file: String): Unit {
+    if (!File(json_file).exists())
+        throw IOException("Json file does not exist")
+
+    val settings = getSettings(json_file) ?: throw IOException("Failed to parse")
+    checkSettings(settings)
+
+    if (settings.useParallel) {
+        useParallel = true
+        settings.emlFile!!.parallelStream().forEach { sendOneMessage(settings, it) }
+    } else {
+        sendMessages(settings, settings.emlFile!!);
+    }
+}
+
 fun main(args: Array<String>) {
     if (args.isEmpty()) {
         printUsage()
@@ -325,21 +338,8 @@ fun main(args: Array<String>) {
     }
 
     for (json_file in args) {
-        if (!File(json_file).exists()) {
-            println("$json_file: Json file does not exist")
-            continue
-        }
-
         try {
-            val settings = getSettings(json_file) ?: throw IOException("Failed to parse")
-            checkSettings(settings)
-
-            if (settings.useParallel) {
-                useParallel = true
-                settings.emlFile!!.parallelStream().forEach { sendOneMessage(settings, it) }
-            } else {
-                sendMessages(settings, settings.emlFile!!);
-            }
+            procJsonFile(json_file)
         } catch (e: Exception) {
             println("$json_file: ${e.message}")
         }

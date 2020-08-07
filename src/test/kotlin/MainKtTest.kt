@@ -352,4 +352,9 @@ test""";
         org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("emlFile") }
         org.junit.jupiter.api.assertDoesNotThrow { checkNoKey("testKey") }
     }
+
+    @org.junit.jupiter.api.Test
+    fun procJsonFile() {
+        org.junit.jupiter.api.assertThrows<IOException> { app.procJsonFile("__test__") }
+    }
 }
