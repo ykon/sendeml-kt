@@ -255,18 +255,22 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
-    fun sendLine() {
-        fun test(cmd: String, stdout_expected: String, writer_expected: String) {
-            val output = ByteArrayOutputStream()
-            val sendLine = getStdout {
-                app.sendLine(output, cmd)
-            }
-            assertEquals(stdout_expected, sendLine)
-            assertEquals(writer_expected, output.toString(Charsets.UTF_8))
-        }
+    fun replaceCrlfDot() {
+        assertEquals("TEST", app.replaceCrlfDot("TEST"))
+        assertEquals("CRLF", app.replaceCrlfDot("CRLF"))
+        assertEquals(app.CRLF, app.replaceCrlfDot(app.CRLF))
+        assertEquals(".", app.replaceCrlfDot("."))
+        assertEquals("<CRLF>.", app.replaceCrlfDot("${app.CRLF}."))
+    }
 
-        test("EHLO localhost", "send: EHLO localhost\r\n", "EHLO localhost\r\n")
-        test("\r\n.", "send: <CRLF>.\r\n", "\r\n.\r\n")
+    @org.junit.jupiter.api.Test
+    fun sendLine() {
+        val output = ByteArrayOutputStream()
+        val sendLine = getStdout {
+            app.sendLine(output, "EHLO localhost")
+        }
+        assertEquals("send: EHLO localhost\r\n", sendLine)
+        assertEquals("EHLO localhost\r\n", output.toString(Charsets.UTF_8))
     }
 
     private fun makeTestSendCmd(expected: String): SendCmd {
@@ -304,8 +308,8 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
-    fun sendCrLfDot() {
-        app.sendCrLfDot(makeTestSendCmd("\r\n."))
+    fun sendCrlfDot() {
+        app.sendCrlfDot(makeTestSendCmd("\r\n."))
     }
 
     @org.junit.jupiter.api.Test

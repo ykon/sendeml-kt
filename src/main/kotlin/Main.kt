@@ -175,8 +175,12 @@ fun recvLine(reader: BufferedReader): String {
     }
 }
 
+fun replaceCrlfDot(cmd: String): String {
+    return if (cmd == "$CRLF.") "<CRLF>." else cmd
+}
+
 fun sendLine(output: OutputStream, cmd: String): Unit {
-    println(getCurrentIdPrefix() + "send: " + if (cmd == "$CRLF.") "<CRLF>." else cmd)
+    println(getCurrentIdPrefix() + "send: " + replaceCrlfDot(cmd))
 
     output.write((cmd + CRLF).toByteArray())
     output.flush()
@@ -208,7 +212,7 @@ fun sendData(send: SendCmd): Unit {
     send("DATA")
 }
 
-fun sendCrLfDot(send: SendCmd): Unit {
+fun sendCrlfDot(send: SendCmd): Unit {
     send("$CRLF.")
 }
 
@@ -248,7 +252,7 @@ fun sendMessages(settings: Settings, emlFiles: List<String>): Unit {
             sendRcptTo(send, settings.toAddress!!)
             sendData(send)
             sendRawBytes(output, file, settings.updateDate, settings.updateMessageId)
-            sendCrLfDot(send)
+            sendCrlfDot(send)
             mailSent = true
         }
 
