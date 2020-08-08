@@ -30,6 +30,14 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
+    fun indexOf() {
+        val mail = getMailByteArray(makeSimpleMail())
+        assertEquals(33, app.indexOf(mail, app.CR, 0))
+        assertEquals(48, app.indexOf(mail, app.CR, 34))
+        assertEquals(74, app.indexOf(mail, app.CR, 58))
+    }
+
+    @org.junit.jupiter.api.Test
     fun findLfIndex() {
         val mail = getMailByteArray(makeSimpleMail())
         assertEquals(34, app.findLfIndex(mail, 0))
@@ -156,6 +164,38 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
+    fun combineMail() {
+        val mail = getMailByteArray(makeSimpleMail())
+        val (header, body) = app.splitMail(mail)!!
+        val newMail = app.combineMail(header, body)
+
+        assertTrue(mail.contentEquals(newMail))
+    }
+
+    @org.junit.jupiter.api.Test
+    fun findEmptyLine() {
+        val mail = getMailByteArray(makeSimpleMail())
+        assertEquals(414, app.findEmptyLine(mail))
+
+        val invalidMail = getMailByteArray(makeSimpleMail().replace("\n\n", ""))
+        assertEquals(-1, app.findEmptyLine(invalidMail))
+    }
+
+    @org.junit.jupiter.api.Test
+    fun splitMail() {
+        val mail = getMailByteArray(makeSimpleMail())
+        val headerBody = app.splitMail(mail)
+        assertTrue(headerBody != null)
+
+        val (header, body) = headerBody!!
+        assertTrue(mail.take(414).toByteArray().contentEquals(header))
+        assertTrue(mail.drop(414 + 4).take(4).toByteArray().contentEquals(body))
+
+        val invalidMail = getMailByteArray(makeSimpleMail().replace("\n\n", ""))
+        assertTrue(app.splitMail(invalidMail) == null)
+    }
+
+    @org.junit.jupiter.api.Test
     fun replaceRawBytes() {
         val mail = getMailByteArray(makeSimpleMail())
         val replMailNoupdate = app.replaceRawBytes(mail, false, false)
@@ -165,6 +205,13 @@ test""";
         val replMail = app.replaceRawBytes(mail, true, true)
         assertNotEquals(mail, replMail)
         assertFalse(mail.contentEquals(replMail))
+
+        val mailLast100 = mail.sliceArray((mail.size - 100) until mail.size)
+        val replMailLast100 = replMail.sliceArray((replMail.size - 100) until replMail.size)
+        assertTrue(mailLast100.contentEquals(replMailLast100))
+
+        val invalidMail = getMailByteArray(makeSimpleMail().replace("\n\n", ""))
+        org.junit.jupiter.api.assertThrows<IOException> { app.replaceRawBytes(invalidMail, true, true) }
     }
 
     @org.junit.jupiter.api.Test

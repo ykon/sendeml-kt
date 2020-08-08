@@ -14,14 +14,21 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 const val VERSION = 1.2
+
+const val CR = '\r'.toByte()
+const val LF = '\n'.toByte()
 const val CRLF = "\r\n"
 
-fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
-    for (i in offset until fileBuf.size) {
-        if (fileBuf[i] == '\n'.toByte())
+fun indexOf(buf: ByteArray, value: Byte, offset: Int): Int {
+    for (i in offset until buf.size) {
+        if (buf[i] == value)
             return i
     }
     return -1
+}
+
+fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
+    return indexOf(fileBuf, LF, offset)
 }
 
 fun findAllLfIndices(fileBuf: ByteArray): List<Int> {
@@ -110,8 +117,44 @@ fun concatRawLines(lines: List<ByteArray>): ByteArray {
     return buf
 }
 
+fun findEmptyLine(fileBuf: ByteArray): Int {
+    var offset = 0
+    while (true) {
+        val idx = indexOf(fileBuf, CR, offset)
+        if (idx == -1 || (idx + 3) >= fileBuf.size)
+            return -1
+
+        if (fileBuf[idx + 1] == LF && fileBuf[idx + 2] == CR && fileBuf[idx + 3] == LF)
+            return idx
+
+        offset = idx + 1
+    }
+}
+
+val EMPTY_LINE = arrayOf(CR, LF, CR, LF).toByteArray()
+
+fun combineMail(header: ByteArray, body: ByteArray): ByteArray {
+    val mail = ByteArray(header.size + EMPTY_LINE.size + body.size)
+    header.copyInto(mail, 0, 0, header.size)
+    EMPTY_LINE.copyInto(mail, header.size, 0, EMPTY_LINE.size)
+    body.copyInto(mail, header.size + EMPTY_LINE.size, 0, body.size)
+    return mail
+}
+
+fun splitMail(fileBuf: ByteArray): Pair<ByteArray, ByteArray>? {
+    val idx = findEmptyLine(fileBuf)
+    if (idx == -1)
+        return null
+
+    val header = fileBuf.copyOfRange(0, idx)
+    val body = fileBuf.copyOfRange(idx + EMPTY_LINE.size, fileBuf.size)
+    return Pair(header, body)
+}
+
 fun replaceRawBytes(fileBuf: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
-    return concatRawLines(replaceRawLines(getRawLines(fileBuf), updateDate, updateMessageId))
+    val (header, body) = splitMail(fileBuf) ?: throw IOException("Invalid mail")
+    val replHeader = concatRawLines(replaceRawLines(getRawLines(header), updateDate, updateMessageId))
+    return combineMail(replHeader, body)
 }
 
 @Volatile var USE_PARALLEL = false
