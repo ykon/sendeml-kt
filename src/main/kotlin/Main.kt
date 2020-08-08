@@ -114,10 +114,10 @@ fun replaceRawBytes(fileBuf: ByteArray, updateDate: Boolean, updateMessageId: Bo
     return concatRawLines(replaceRawLines(getRawLines(fileBuf), updateDate, updateMessageId))
 }
 
-@Volatile var useParallel = false
+@Volatile var USE_PARALLEL = false
 
 fun getCurrentIdPrefix(): String {
-    return if (useParallel) "id: ${Thread.currentThread().id}, " else ""
+    return if (USE_PARALLEL) "id: ${Thread.currentThread().id}, " else ""
 }
 
 fun sendRawBytes(output: OutputStream, file: String, updateDate: Boolean, updateMessageId: Boolean): Unit {
@@ -296,17 +296,20 @@ fun printVersion() {
 }
 
 fun checkSettings(settings: Settings): Unit {
-    val key = when {
-        settings.smtpHost == null -> "smtpHost"
-        settings.smtpPort == null -> "smtpPort"
-        settings.fromAddress == null -> "fromAddress"
-        settings.toAddress == null -> "toAddress"
-        settings.emlFile == null -> "emlFile"
-        else -> ""
+    fun getNullKey(s: Settings): String {
+        return when {
+            s.smtpHost == null -> "smtpHost"
+            s.smtpPort == null -> "smtpPort"
+            s.fromAddress == null -> "fromAddress"
+            s.toAddress == null -> "toAddress"
+            s.emlFile == null -> "emlFile"
+            else -> ""
+        }
     }
 
-    if (key.isNotEmpty())
-        throw IOException("$key key does not exist")
+    val nullKey = getNullKey(settings)
+    if (nullKey.isNotEmpty())
+        throw IOException("$nullKey key does not exist")
 }
 
 fun procJsonFile(json_file: String): Unit {
@@ -317,7 +320,7 @@ fun procJsonFile(json_file: String): Unit {
     checkSettings(settings)
 
     if (settings.useParallel) {
-        useParallel = true
+        USE_PARALLEL = true
         settings.emlFile!!.parallelStream().forEach { sendOneMessage(settings, it) }
     } else {
         sendMessages(settings, settings.emlFile!!);
