@@ -93,9 +93,9 @@ fun isNotUpdate(updateDate: Boolean, updateMessageId: Boolean): Boolean {
     return !updateDate && !updateMessageId
 }
 
-fun replaceRawLines(lines: List<ByteArray>, updateDate: Boolean, updateMessageId: Boolean): List<ByteArray> {
+fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
     if (isNotUpdate(updateDate, updateMessageId))
-        return lines
+        return header
 
     fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): Unit {
         if (update) {
@@ -105,10 +105,10 @@ fun replaceRawLines(lines: List<ByteArray>, updateDate: Boolean, updateMessageId
         }
     }
 
-    val replLines = lines.toMutableList()
+    val replLines = getRawLines(header).toMutableList()
     replaceLine(replLines, updateDate, ::isDateLine, ::makeNowDateLine)
     replaceLine(replLines, updateMessageId, ::isMessageIdLine, ::makeRandomMessageIdLine)
-    return replLines
+    return concatRawLines(replLines)
 }
 
 fun concatRawLines(lines: List<ByteArray>): ByteArray {
@@ -160,7 +160,7 @@ fun replaceRawBytes(fileBuf: ByteArray, updateDate: Boolean, updateMessageId: Bo
         return fileBuf
 
     val (header, body) = splitMail(fileBuf) ?: throw IOException("Invalid mail")
-    val replHeader = concatRawLines(replaceRawLines(getRawLines(header), updateDate, updateMessageId))
+    val replHeader = replaceHeader(header, updateDate, updateMessageId)
     return combineMail(replHeader, body)
 }
 
