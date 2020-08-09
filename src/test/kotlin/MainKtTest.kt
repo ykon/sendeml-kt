@@ -133,6 +133,14 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
+    fun isNotUpdateTest() {
+        assertFalse(app.isNotUpdate(true, true))
+        assertFalse(app.isNotUpdate(true, false))
+        assertFalse(app.isNotUpdate(false, true))
+        assertTrue(app.isNotUpdate(false, false))
+    }
+
+    @org.junit.jupiter.api.Test
     fun replaceRawLines() {
         val mail = getMailByteArray(makeSimpleMail())
         val lines = app.getRawLines(mail)
@@ -199,8 +207,7 @@ test""";
     fun replaceRawBytes() {
         val mail = getMailByteArray(makeSimpleMail())
         val replMailNoupdate = app.replaceRawBytes(mail, false, false)
-        assertNotEquals(mail, replMailNoupdate)
-        assertTrue(mail.contentEquals(replMailNoupdate))
+        assertEquals(mail, replMailNoupdate)
 
         val replMail = app.replaceRawBytes(mail, true, true)
         assertNotEquals(mail, replMail)

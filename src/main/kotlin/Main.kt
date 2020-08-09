@@ -89,8 +89,12 @@ fun makeRandomMessageIdLine(): String {
     return "Message-ID: <$randStr>$CRLF"
 }
 
+fun isNotUpdate(updateDate: Boolean, updateMessageId: Boolean): Boolean {
+    return !updateDate && !updateMessageId
+}
+
 fun replaceRawLines(lines: List<ByteArray>, updateDate: Boolean, updateMessageId: Boolean): List<ByteArray> {
-    if (!updateDate && !updateMessageId)
+    if (isNotUpdate(updateDate, updateMessageId))
         return lines
 
     fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): Unit {
@@ -152,6 +156,9 @@ fun splitMail(fileBuf: ByteArray): Pair<ByteArray, ByteArray>? {
 }
 
 fun replaceRawBytes(fileBuf: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
+    if (isNotUpdate(updateDate, updateMessageId))
+        return fileBuf
+
     val (header, body) = splitMail(fileBuf) ?: throw IOException("Invalid mail")
     val replHeader = concatRawLines(replaceRawLines(getRawLines(header), updateDate, updateMessageId))
     return combineMail(replHeader, body)
