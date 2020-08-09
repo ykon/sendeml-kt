@@ -133,7 +133,7 @@ test""";
     }
 
     @org.junit.jupiter.api.Test
-    fun isNotUpdateTest() {
+    fun isNotUpdate() {
         assertFalse(app.isNotUpdate(true, true))
         assertFalse(app.isNotUpdate(true, false))
         assertFalse(app.isNotUpdate(false, true))
