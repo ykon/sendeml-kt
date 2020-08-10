@@ -13,7 +13,7 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-const val VERSION = 1.3
+const val VERSION = 1.4
 
 const val CR = '\r'.toByte()
 const val LF = '\n'.toByte()
