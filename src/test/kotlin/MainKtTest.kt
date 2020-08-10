@@ -66,11 +66,11 @@ test""".replace("\n", "\r\n")
     }
 
     @org.junit.jupiter.api.Test
-    fun indexOf() {
+    fun findCrIndex() {
         val mail = makeSimpleMailBytes()
-        assertEquals(33, app.indexOf(mail, app.CR, 0))
-        assertEquals(48, app.indexOf(mail, app.CR, 34))
-        assertEquals(74, app.indexOf(mail, app.CR, 58))
+        assertEquals(33, app.findCrIndex(mail, 0))
+        assertEquals(48, app.findCrIndex(mail, 34))
+        assertEquals(74, app.findCrIndex(mail, 58))
     }
 
     @org.junit.jupiter.api.Test

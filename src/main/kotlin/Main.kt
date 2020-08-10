@@ -27,6 +27,10 @@ fun indexOf(buf: ByteArray, value: Byte, offset: Int): Int {
     return -1
 }
 
+fun findCrIndex(fileBuf: ByteArray, offset: Int): Int {
+    return indexOf(fileBuf, CR, offset)
+}
+
 fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
     return indexOf(fileBuf, LF, offset)
 }
@@ -124,7 +128,7 @@ fun concatRawLines(lines: List<ByteArray>): ByteArray {
 fun findEmptyLine(fileBuf: ByteArray): Int {
     var offset = 0
     while (true) {
-        val idx = indexOf(fileBuf, CR, offset)
+        val idx = findCrIndex(fileBuf, offset)
         if (idx == -1 || (idx + 3) >= fileBuf.size)
             return -1
 
