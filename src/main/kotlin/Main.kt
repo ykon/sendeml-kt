@@ -97,6 +97,16 @@ fun isNotUpdate(updateDate: Boolean, updateMessageId: Boolean): Boolean {
     return !updateDate && !updateMessageId
 }
 
+fun concatBytes(bytesList: Iterable<ByteArray>): ByteArray {
+    val buf = ByteArray(bytesList.sumBy { it.size })
+    var offset = 0
+    for (b in bytesList) {
+        b.copyInto(buf, offset, 0, b.size)
+        offset += b.size
+    }
+    return buf
+}
+
 fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
     if (isNotUpdate(updateDate, updateMessageId))
         return header
@@ -112,17 +122,7 @@ fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boole
     val replLines = getRawLines(header).toMutableList()
     replaceLine(replLines, updateDate, ::isDateLine, ::makeNowDateLine)
     replaceLine(replLines, updateMessageId, ::isMessageIdLine, ::makeRandomMessageIdLine)
-    return concatRawLines(replLines)
-}
-
-fun concatRawLines(lines: List<ByteArray>): ByteArray {
-    val buf = ByteArray(lines.sumBy { it.size })
-    var offset = 0
-    for (l in lines) {
-        l.copyInto(buf, offset, 0, l.size)
-        offset += l.size
-    }
-    return buf
+    return concatBytes(replLines)
 }
 
 fun findEmptyLine(fileBuf: ByteArray): Int {
@@ -142,11 +142,7 @@ fun findEmptyLine(fileBuf: ByteArray): Int {
 val EMPTY_LINE = arrayOf(CR, LF, CR, LF).toByteArray()
 
 fun combineMail(header: ByteArray, body: ByteArray): ByteArray {
-    val mail = ByteArray(header.size + EMPTY_LINE.size + body.size)
-    header.copyInto(mail, 0, 0, header.size)
-    EMPTY_LINE.copyInto(mail, header.size, 0, EMPTY_LINE.size)
-    body.copyInto(mail, header.size + EMPTY_LINE.size, 0, body.size)
-    return mail
+    return concatBytes(listOf(header, EMPTY_LINE, body))
 }
 
 fun splitMail(fileBuf: ByteArray): Pair<ByteArray, ByteArray>? {

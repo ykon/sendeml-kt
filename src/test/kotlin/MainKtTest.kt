@@ -208,11 +208,11 @@ test""".replace("\n", "\r\n")
     }
 
     @org.junit.jupiter.api.Test
-    fun concatRawLines() {
+    fun concatBytes() {
         val mail = makeSimpleMailBytes()
         val lines = app.getRawLines(mail)
 
-        val newMail = app.concatRawLines(lines)
+        val newMail = app.concatBytes(lines)
         assertArrayEquals(mail, newMail)
     }
 
