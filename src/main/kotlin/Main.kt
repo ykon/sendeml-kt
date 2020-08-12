@@ -17,6 +17,8 @@ const val VERSION = 1.4
 
 const val CR = '\r'.toByte()
 const val LF = '\n'.toByte()
+const val SPACE = ' '.toByte()
+const val HTAB = '\t'.toByte()
 const val CRLF = "\r\n"
 
 fun indexOf(buf: ByteArray, value: Byte, offset: Int): Int {
@@ -107,15 +109,34 @@ fun concatBytes(bytesList: Iterable<ByteArray>): ByteArray {
     return buf
 }
 
+fun isWsp(b: Byte): Boolean {
+    return b == SPACE || b == HTAB
+}
+
+fun isFirstWsp(bytes: ByteArray): Boolean {
+    return isWsp(bytes.firstOrNull() ?: 0)
+}
+
 fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
     if (isNotUpdate(updateDate, updateMessageId))
         return header
 
+    fun removeFolding(lines: MutableList<ByteArray>, idx: Int): Unit {
+        for (i in idx until lines.size) {
+            if (isFirstWsp(lines[i]))
+                lines[i] = ByteArray(0)
+            else
+                break
+        }
+    }
+
     fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): Unit {
         if (update) {
             val idx = lines.indexOfFirst(matchLine)
-            if (idx != -1)
+            if (idx != -1) {
                 lines[idx] = makeLine().toByteArray(Charsets.UTF_8)
+                removeFolding(lines, idx + 1)
+            }
         }
     }
 

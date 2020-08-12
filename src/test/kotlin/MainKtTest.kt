@@ -25,6 +25,25 @@ Content-Language: en-US
 test""".replace("\n", "\r\n")
     }
 
+    fun makeFoldedMail(): String {
+        return """From: a001 <a001@ah62.example.jp>
+Subject: test
+To: a002@ah62.example.jp
+Message-ID:
+ <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>
+Date:
+ Sun, 26 Jul 2020
+ 22:01:37 +0900
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101
+ Thunderbird/78.0.1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+
+test""".replace("\n", "\r\n")
+    }
+
     private fun makeSimpleMailBytes(): ByteArray {
         return makeSimpleMail().toByteArray(Charsets.UTF_8)
     }
@@ -37,32 +56,36 @@ test""".replace("\n", "\r\n")
         return makeInvalidMail().toByteArray(Charsets.UTF_8)
     }
 
+    private fun makeFoldedMailBytes(): ByteArray {
+        return makeFoldedMail().toByteArray(Charsets.UTF_8)
+    }
+
     private fun assertArrayNotEquals(a1: ByteArray, a2: ByteArray): Unit {
         assertEquals(false, a1.contentEquals(a2))
     }
 
-    private fun getMessageIdLine(header: ByteArray): String {
+    private fun getHeaderLine(header: ByteArray, name: String): String {
         val headerStr = header.toString(Charsets.UTF_8)
-        return Regex("""Message-ID: [\S]+\r\n""").find(headerStr)?.value!!
+        return Regex(name + """:[\s\S]+?\r\n(?=[^ \t])""").find(headerStr)?.value!!
+    }
+
+    private fun getMessageIdLine(header: ByteArray): String {
+        return getHeaderLine(header, "Message-ID")
     }
 
     private fun getDateLine(header: ByteArray): String {
-        val headerStr = header.toString(Charsets.UTF_8)
-        return Regex("""Date: [\S ]+\r\n""").find(headerStr)?.value!!
+        return getHeaderLine(header, "Date")
     }
 
     @org.junit.jupiter.api.Test
-    fun getMessageIdLineTest() {
+    fun getHeaderLineTest() {
         val mail = makeSimpleMailBytes()
-        val (header, _) = app.splitMail(mail)!!
-        assertEquals("Message-ID: <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getMessageIdLine(header))
-    }
+        assertEquals("Message-ID: <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(mail, "Message-ID"))
+        assertEquals("Date: Sun, 26 Jul 2020 22:01:37 +0900\r\n", getHeaderLine(mail, "Date"))
 
-    @org.junit.jupiter.api.Test
-    fun getDateLineTest() {
-        val mail = makeSimpleMailBytes()
-        val (header, _) = app.splitMail(mail)!!
-        assertEquals("Date: Sun, 26 Jul 2020 22:01:37 +0900\r\n", getDateLine(header))
+        val foldedMail = makeFoldedMailBytes()
+        assertEquals("Message-ID:\r\n <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(foldedMail, "Message-ID"))
+        assertEquals("Date:\r\n Sun, 26 Jul 2020\r\n 22:01:37 +0900\r\n", getHeaderLine(foldedMail, "Date"))
     }
 
     @org.junit.jupiter.api.Test
@@ -177,6 +200,24 @@ test""".replace("\n", "\r\n")
     }
 
     @org.junit.jupiter.api.Test
+    fun isWsp() {
+        assertTrue(app.isWsp(' '.toByte()))
+        assertTrue(app.isWsp('\t'.toByte()))
+        assertFalse(app.isWsp('0'.toByte()))
+        assertFalse(app.isWsp('a'.toByte()))
+        assertFalse(app.isWsp('b'.toByte()))
+    }
+
+    @org.junit.jupiter.api.Test
+    fun isFirstWsp() {
+        assertTrue(app.isFirstWsp(byteArrayOf(' '.toByte(), 'a'.toByte(), 'b'.toByte())))
+        assertTrue(app.isFirstWsp(byteArrayOf('\t'.toByte(), 'a'.toByte(), 'b'.toByte())))
+        assertFalse(app.isFirstWsp(byteArrayOf('0'.toByte(), 'a'.toByte(), 'b'.toByte())))
+        assertFalse(app.isFirstWsp(byteArrayOf('a'.toByte(), 'b'.toByte(), ' '.toByte())))
+        assertFalse(app.isFirstWsp(byteArrayOf('a'.toByte(), 'b'.toByte(), '\t'.toByte())))
+    }
+
+    @org.junit.jupiter.api.Test
     fun replaceHeader() {
         val (header, _) = app.splitMail(makeSimpleMailBytes())!!
         val dateLine = getDateLine(header)
@@ -188,23 +229,28 @@ test""".replace("\n", "\r\n")
         val replHeader = app.replaceHeader(header, true, true)
         assertArrayNotEquals(header, replHeader)
 
-        fun replace(update_date: Boolean, update_message_id: Boolean): Pair<String, String> {
+        fun replace(header: ByteArray, update_date: Boolean, update_message_id: Boolean): Pair<String, String> {
             val rHeader = app.replaceHeader(header, update_date, update_message_id)
             assertArrayNotEquals(header, rHeader)
             return Pair(getDateLine(rHeader), getMessageIdLine(rHeader))
         }
 
-        val (rDateLine, rMidLine) = replace(true, true);
+        val (rDateLine, rMidLine) = replace(header, true, true);
         assertNotEquals(dateLine, rDateLine)
         assertNotEquals(midLine, rMidLine)
 
-        val (rDateLine2, rMidLine2) = replace(true, false);
+        val (rDateLine2, rMidLine2) = replace(header, true, false);
         assertNotEquals(dateLine, rDateLine2)
         assertEquals(midLine, rMidLine2)
 
-        val (rDateLine3, rMidLine3) = replace(false, true);
+        val (rDateLine3, rMidLine3) = replace(header, false, true);
         assertEquals(dateLine, rDateLine3)
         assertNotEquals(midLine, rMidLine3)
+
+        val (foldedHeader, _) = app.splitMail(makeFoldedMailBytes())!!
+        var (fDateLine, fMidLine) = replace(foldedHeader, true, true)
+        assertEquals(1, fDateLine.count { it == '\n' })
+        assertEquals(1, fMidLine.count { it == '\n' })
     }
 
     @org.junit.jupiter.api.Test
