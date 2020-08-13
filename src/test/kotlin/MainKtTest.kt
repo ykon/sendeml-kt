@@ -9,7 +9,7 @@ import java.io.*
 typealias SendCmd = (String) -> String
 
 internal class MainKtTest {
-    private fun makeSimpleMail(): String {
+    private fun makeSimpleMailText(): String {
         return """From: a001 <a001@ah62.example.jp>
 Subject: test
 To: a002@ah62.example.jp
@@ -25,8 +25,8 @@ Content-Language: en-US
 test""".replace("\n", "\r\n")
     }
 
-    fun makeFoldedMail(): String {
-        return """From: a001 <a001@ah62.example.jp>
+    private fun makeFoldedMail(): ByteArray {
+        val text = """From: a001 <a001@ah62.example.jp>
 Subject: test
 To: a002@ah62.example.jp
 Message-ID:
@@ -41,23 +41,54 @@ Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
 
-test""".replace("\n", "\r\n")
+test"""
+        return text.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
     }
 
-    private fun makeSimpleMailBytes(): ByteArray {
-        return makeSimpleMail().toByteArray(Charsets.UTF_8)
+    private fun makeFoldedEndDate(): ByteArray {
+        val text = """From: a001 <a001@ah62.example.jp>
+Subject: test
+To: a002@ah62.example.jp
+Message-ID:
+ <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101
+ Thunderbird/78.0.1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+Date:
+ Sun, 26 Jul 2020
+ 22:01:37 +0900
+"""
+        return text.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
     }
 
-    private fun makeInvalidMail(): String {
-        return makeSimpleMail().replace("\r\n\r\n", "")
+    private fun makeFoldedEndMessageId(): ByteArray {
+        val text = """From: a001 <a001@ah62.example.jp>
+Subject: test
+To: a002@ah62.example.jp
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101
+ Thunderbird/78.0.1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+Date:
+ Sun, 26 Jul 2020
+ 22:01:37 +0900
+Message-ID:
+ <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>
+"""
+        return text.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
     }
 
-    private fun makeInvalidMailBytes(): ByteArray {
-        return makeInvalidMail().toByteArray(Charsets.UTF_8)
+    private fun makeSimpleMail(): ByteArray {
+        return makeSimpleMailText().toByteArray(Charsets.UTF_8)
     }
 
-    private fun makeFoldedMailBytes(): ByteArray {
-        return makeFoldedMail().toByteArray(Charsets.UTF_8)
+    private fun makeInvalidMail(): ByteArray {
+        return makeSimpleMailText().replace("\r\n\r\n", "").toByteArray(Charsets.UTF_8)
     }
 
     private fun assertArrayNotEquals(a1: ByteArray, a2: ByteArray): Unit {
@@ -66,7 +97,8 @@ test""".replace("\n", "\r\n")
 
     private fun getHeaderLine(header: ByteArray, name: String): String {
         val headerStr = header.toString(Charsets.UTF_8)
-        return Regex(name + """:[\s\S]+?\r\n(?=[^ \t])""").find(headerStr)?.value!!
+        val pat = """:[\s\S]+?\r\n(?=([^ \t]|$))"""
+        return Regex(name + pat).find(headerStr)?.value!!
     }
 
     private fun getMessageIdLine(header: ByteArray): String {
@@ -79,18 +111,24 @@ test""".replace("\n", "\r\n")
 
     @org.junit.jupiter.api.Test
     fun getHeaderLineTest() {
-        val mail = makeSimpleMailBytes()
-        assertEquals("Message-ID: <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(mail, "Message-ID"))
+        val mail = makeSimpleMail()
         assertEquals("Date: Sun, 26 Jul 2020 22:01:37 +0900\r\n", getHeaderLine(mail, "Date"))
+        assertEquals("Message-ID: <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(mail, "Message-ID"))
 
-        val foldedMail = makeFoldedMailBytes()
-        assertEquals("Message-ID:\r\n <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(foldedMail, "Message-ID"))
+        val foldedMail = makeFoldedMail()
         assertEquals("Date:\r\n Sun, 26 Jul 2020\r\n 22:01:37 +0900\r\n", getHeaderLine(foldedMail, "Date"))
+        assertEquals("Message-ID:\r\n <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(foldedMail, "Message-ID"))
+
+        val endDate = makeFoldedEndDate()
+        assertEquals("Date:\r\n Sun, 26 Jul 2020\r\n 22:01:37 +0900\r\n", getHeaderLine(endDate, "Date"))
+
+        val endMessageId =makeFoldedEndMessageId()
+        assertEquals("Message-ID:\r\n <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(endMessageId, "Message-ID"))
     }
 
     @org.junit.jupiter.api.Test
     fun findCrIndex() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         assertEquals(33, app.findCrIndex(mail, 0))
         assertEquals(48, app.findCrIndex(mail, 34))
         assertEquals(74, app.findCrIndex(mail, 58))
@@ -98,7 +136,7 @@ test""".replace("\n", "\r\n")
 
     @org.junit.jupiter.api.Test
     fun findLfIndex() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         assertEquals(34, app.findLfIndex(mail, 0))
         assertEquals(49, app.findLfIndex(mail, 35))
         assertEquals(75, app.findLfIndex(mail, 59))
@@ -106,7 +144,7 @@ test""".replace("\n", "\r\n")
 
     @org.junit.jupiter.api.Test
     fun findAllLfIndices() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         val indices = app.findAllLfIndices(mail)
 
         assertEquals(34, indices[0])
@@ -120,7 +158,7 @@ test""".replace("\n", "\r\n")
 
     @org.junit.jupiter.api.Test
     fun getRawLines() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         val lines = app.getRawLines(mail)
 
         assertEquals(13, lines.size)
@@ -219,7 +257,7 @@ test""".replace("\n", "\r\n")
 
     @org.junit.jupiter.api.Test
     fun replaceHeader() {
-        val (header, _) = app.splitMail(makeSimpleMailBytes())!!
+        val (header, _) = app.splitMail(makeSimpleMail())!!
         val dateLine = getDateLine(header)
         val midLine = getMessageIdLine(header)
 
@@ -247,7 +285,7 @@ test""".replace("\n", "\r\n")
         assertEquals(dateLine, rDateLine3)
         assertNotEquals(midLine, rMidLine3)
 
-        val (foldedHeader, _) = app.splitMail(makeFoldedMailBytes())!!
+        val (foldedHeader, _) = app.splitMail(makeFoldedMail())!!
         var (fDateLine, fMidLine) = replace(foldedHeader, true, true)
         assertEquals(1, fDateLine.count { it == '\n' })
         assertEquals(1, fMidLine.count { it == '\n' })
@@ -255,7 +293,7 @@ test""".replace("\n", "\r\n")
 
     @org.junit.jupiter.api.Test
     fun concatBytes() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         val lines = app.getRawLines(mail)
 
         val newMail = app.concatBytes(lines)
@@ -264,7 +302,7 @@ test""".replace("\n", "\r\n")
 
     @org.junit.jupiter.api.Test
     fun combineMail() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         val (header, body) = app.splitMail(mail)!!
         val newMail = app.combineMail(header, body)
         assertArrayEquals(mail, newMail)
@@ -272,16 +310,16 @@ test""".replace("\n", "\r\n")
 
     @org.junit.jupiter.api.Test
     fun findEmptyLine() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         assertEquals(414, app.findEmptyLine(mail))
 
-        val invalidMail = makeInvalidMailBytes()
+        val invalidMail = makeInvalidMail()
         assertEquals(-1, app.findEmptyLine(invalidMail))
     }
 
     @org.junit.jupiter.api.Test
     fun splitMail() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         val headerBody = app.splitMail(mail)
         assertTrue(headerBody != null)
 
@@ -289,13 +327,13 @@ test""".replace("\n", "\r\n")
         assertArrayEquals(mail.take(414).toByteArray(), header)
         assertArrayEquals(mail.drop(414 + 4).toByteArray(), body)
 
-        val invalidMail = makeInvalidMailBytes()
+        val invalidMail = makeInvalidMail()
         assertTrue(app.splitMail(invalidMail) == null)
     }
 
     @org.junit.jupiter.api.Test
     fun replaceRawBytes() {
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         val replMailNoupdate = app.replaceRawBytes(mail, false, false)
         assertEquals(mail, replMailNoupdate)
 
@@ -307,7 +345,7 @@ test""".replace("\n", "\r\n")
         val replMailLast100 = replMail.sliceArray((replMail.size - 100) until replMail.size)
         assertArrayEquals(mailLast100, replMailLast100)
 
-        val invalidMail = makeInvalidMailBytes()
+        val invalidMail = makeInvalidMail()
         org.junit.jupiter.api.assertThrows<IOException> { app.replaceRawBytes(invalidMail, true, true) }
     }
 
@@ -368,7 +406,7 @@ test""".replace("\n", "\r\n")
     @org.junit.jupiter.api.Test
     fun sendRawBytes() {
         val file = createTempFile()
-        val mail = makeSimpleMailBytes()
+        val mail = makeSimpleMail()
         file.writeBytes(mail)
 
         val fileOutStream = ByteArrayOutputStream()

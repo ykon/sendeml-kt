@@ -140,10 +140,10 @@ fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boole
         }
     }
 
-    val replLines = getRawLines(header).toMutableList()
-    replaceLine(replLines, updateDate, ::isDateLine, ::makeNowDateLine)
-    replaceLine(replLines, updateMessageId, ::isMessageIdLine, ::makeRandomMessageIdLine)
-    return concatBytes(replLines)
+    val lines = getRawLines(header).toMutableList()
+    replaceLine(lines, updateDate, ::isDateLine, ::makeNowDateLine)
+    replaceLine(lines, updateMessageId, ::isMessageIdLine, ::makeRandomMessageIdLine)
+    return concatBytes(lines)
 }
 
 fun findEmptyLine(fileBuf: ByteArray): Int {
