@@ -59,8 +59,8 @@ fun getRawLines(fileBuf: ByteArray): List<ByteArray> {
     }
 }
 
-val DATE_BYTES = "Date:".toByteArray(Charsets.UTF_8)
-val MESSAGE_ID_BYTES = "Message-ID:".toByteArray(Charsets.UTF_8)
+val DATE_BYTES = "Date:".toByteArray()
+val MESSAGE_ID_BYTES = "Message-ID:".toByteArray()
 
 fun matchHeaderField(line: ByteArray, header: ByteArray): Boolean {
     if (line.size < header.size)
@@ -134,7 +134,7 @@ fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boole
         if (update) {
             val idx = lines.indexOfFirst(matchLine)
             if (idx != -1) {
-                lines[idx] = makeLine().toByteArray(Charsets.UTF_8)
+                lines[idx] = makeLine().toByteArray()
                 removeFolding(lines, idx + 1)
             }
         }

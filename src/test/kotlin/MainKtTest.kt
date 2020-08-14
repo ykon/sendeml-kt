@@ -9,6 +9,10 @@ import java.io.*
 typealias SendCmd = (String) -> String
 
 internal class MainKtTest {
+    private fun ByteArray.toUtf8String(): String {
+        return this.toString(Charsets.UTF_8)
+    }
+
     private fun makeSimpleMailText(): String {
         return """From: a001 <a001@ah62.example.jp>
 Subject: test
@@ -42,7 +46,7 @@ Content-Transfer-Encoding: 7bit
 Content-Language: en-US
 
 test"""
-        return text.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
+        return text.replace("\n", "\r\n").toByteArray()
     }
 
     private fun makeFoldedEndDate(): ByteArray {
@@ -61,7 +65,7 @@ Date:
  Sun, 26 Jul 2020
  22:01:37 +0900
 """
-        return text.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
+        return text.replace("\n", "\r\n").toByteArray()
     }
 
     private fun makeFoldedEndMessageId(): ByteArray {
@@ -80,15 +84,15 @@ Date:
 Message-ID:
  <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>
 """
-        return text.replace("\n", "\r\n").toByteArray(Charsets.UTF_8)
+        return text.replace("\n", "\r\n").toByteArray()
     }
 
     private fun makeSimpleMail(): ByteArray {
-        return makeSimpleMailText().toByteArray(Charsets.UTF_8)
+        return makeSimpleMailText().toByteArray()
     }
 
     private fun makeInvalidMail(): ByteArray {
-        return makeSimpleMailText().replace("\r\n\r\n", "").toByteArray(Charsets.UTF_8)
+        return makeSimpleMailText().replace("\r\n\r\n", "").toByteArray()
     }
 
     private fun assertArrayNotEquals(a1: ByteArray, a2: ByteArray): Unit {
@@ -96,7 +100,7 @@ Message-ID:
     }
 
     private fun getHeaderLine(header: ByteArray, name: String): String {
-        val headerStr = header.toString(Charsets.UTF_8)
+        val headerStr = header.toUtf8String()
         val pat = """:[\s\S]+?\r\n(?=([^ \t]|$))"""
         return Regex(name + pat).find(headerStr)?.value!!
     }
@@ -112,18 +116,18 @@ Message-ID:
     @org.junit.jupiter.api.Test
     fun getHeaderLineTest() {
         val mail = makeSimpleMail()
-        assertEquals("Date: Sun, 26 Jul 2020 22:01:37 +0900\r\n", getHeaderLine(mail, "Date"))
-        assertEquals("Message-ID: <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(mail, "Message-ID"))
+        assertEquals("Date: Sun, 26 Jul 2020 22:01:37 +0900\r\n", getDateLine(mail))
+        assertEquals("Message-ID: <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getMessageIdLine(mail))
 
-        val foldedMail = makeFoldedMail()
-        assertEquals("Date:\r\n Sun, 26 Jul 2020\r\n 22:01:37 +0900\r\n", getHeaderLine(foldedMail, "Date"))
-        assertEquals("Message-ID:\r\n <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(foldedMail, "Message-ID"))
+        val fMail = makeFoldedMail()
+        assertEquals("Date:\r\n Sun, 26 Jul 2020\r\n 22:01:37 +0900\r\n", getDateLine(fMail))
+        assertEquals("Message-ID:\r\n <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getMessageIdLine(fMail))
 
-        val endDate = makeFoldedEndDate()
-        assertEquals("Date:\r\n Sun, 26 Jul 2020\r\n 22:01:37 +0900\r\n", getHeaderLine(endDate, "Date"))
+        val eDate = makeFoldedEndDate()
+        assertEquals("Date:\r\n Sun, 26 Jul 2020\r\n 22:01:37 +0900\r\n", getDateLine(eDate))
 
-        val endMessageId =makeFoldedEndMessageId()
-        assertEquals("Message-ID:\r\n <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getHeaderLine(endMessageId, "Message-ID"))
+        val eMessageId = makeFoldedEndMessageId()
+        assertEquals("Message-ID:\r\n <b0e564a5-4f70-761a-e103-70119d1bcb32@ah62.example.jp>\r\n", getMessageIdLine(eMessageId))
     }
 
     @org.junit.jupiter.api.Test
@@ -162,18 +166,18 @@ Message-ID:
         val lines = app.getRawLines(mail)
 
         assertEquals(13, lines.size)
-        assertEquals("From: a001 <a001@ah62.example.jp>\r\n", lines[0].toString(Charsets.UTF_8))
-        assertEquals("Subject: test\r\n", lines[1].toString(Charsets.UTF_8))
-        assertEquals("To: a002@ah62.example.jp\r\n", lines[2].toString(Charsets.UTF_8))
+        assertEquals("From: a001 <a001@ah62.example.jp>\r\n", lines[0].toUtf8String())
+        assertEquals("Subject: test\r\n", lines[1].toUtf8String())
+        assertEquals("To: a002@ah62.example.jp\r\n", lines[2].toUtf8String())
 
-        assertEquals("Content-Language: en-US\r\n", lines[lines.lastIndex - 2].toString(Charsets.UTF_8))
-        assertEquals("\r\n", lines[lines.lastIndex - 1].toString(Charsets.UTF_8))
-        assertEquals("test", lines[lines.lastIndex].toString(Charsets.UTF_8))
+        assertEquals("Content-Language: en-US\r\n", lines[lines.lastIndex - 2].toUtf8String())
+        assertEquals("\r\n", lines[lines.lastIndex - 1].toUtf8String())
+        assertEquals("test", lines[lines.lastIndex].toUtf8String())
     }
 
     @org.junit.jupiter.api.Test
     fun matchHeaderField() {
-        val test = { s1: String, s2: String -> app.matchHeaderField(s1.toByteArray(Charsets.UTF_8), s2.toByteArray(Charsets.UTF_8)) }
+        val test = { s1: String, s2: String -> app.matchHeaderField(s1.toByteArray(), s2.toByteArray()) }
 
         assertTrue(test("Test:", "Test:"));
         assertTrue(test("Test: ", "Test:"));
@@ -186,7 +190,7 @@ Message-ID:
 
     @org.junit.jupiter.api.Test
     fun isDateLine() {
-        val test = { s: String -> app.isDateLine(s.toByteArray(Charsets.UTF_8)) }
+        val test = { s: String -> app.isDateLine(s.toByteArray()) }
 
         assertTrue(test("Date: xxx"))
         assertTrue(test("Date:xxx"))
@@ -208,7 +212,7 @@ Message-ID:
 
     @org.junit.jupiter.api.Test
     fun isMessageIdLine() {
-        val test = { s: String -> app.isMessageIdLine(s.toByteArray(Charsets.UTF_8)) }
+        val test = { s: String -> app.isMessageIdLine(s.toByteArray()) }
 
         assertTrue(test("Message-ID: xxx"))
         assertTrue(test("Message-ID:xxx"))
