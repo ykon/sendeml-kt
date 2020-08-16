@@ -5,13 +5,15 @@
 
 package app
 
-import com.beust.klaxon.Klaxon
 import java.io.*
 import java.net.InetAddress
 import java.net.Socket
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.beust.klaxon.JsonObject
+import com.beust.klaxon.Parser
+import kotlin.reflect.KFunction1
 
 const val VERSION = 1.4
 
@@ -176,46 +178,95 @@ fun splitMail(fileBuf: ByteArray): Pair<ByteArray, ByteArray>? {
     return Pair(header, body)
 }
 
-fun replaceRawBytes(fileBuf: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
+fun replaceMail(fileBuf: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
     if (isNotUpdate(updateDate, updateMessageId))
         return fileBuf
 
-    val (header, body) = splitMail(fileBuf) ?: throw IOException("Invalid mail")
+    val (header, body) = splitMail(fileBuf) ?: throw Exception("Invalid mail")
     val replHeader = replaceHeader(header, updateDate, updateMessageId)
     return combineMail(replHeader, body)
 }
 
-@Volatile var USE_PARALLEL = false
-
-fun getCurrentIdPrefix(): String {
-    return if (USE_PARALLEL) "id: ${Thread.currentThread().id}, " else ""
+fun makeIdPrefix(useParallel: Boolean): String {
+    return if (useParallel) "id: ${Thread.currentThread().id}, " else ""
 }
 
-fun sendRawBytes(output: OutputStream, file: String, updateDate: Boolean, updateMessageId: Boolean): Unit {
-    println(getCurrentIdPrefix() + "send: $file")
+fun sendMail(output: OutputStream, file: String, updateDate: Boolean, updateMessageId: Boolean, useParallel: Boolean = false): Unit {
+    println(makeIdPrefix(useParallel) + "send: $file")
 
-    val buf = replaceRawBytes(File(file).readBytes(), updateDate, updateMessageId)
+    val buf = replaceMail(File(file).readBytes(), updateDate, updateMessageId)
     output.write(buf)
     output.flush()
 }
 
 data class Settings (
-    val smtpHost: String? = null,
-    val smtpPort: Int? = null,
-    val fromAddress: String? = null,
-    val toAddress: List<String>? = null,
-    val emlFile: List<String>? = null,
-    val updateDate: Boolean = true,
-    val updateMessageId: Boolean = true,
-    val useParallel: Boolean = false
+    val smtpHost: String,
+    val smtpPort: Int,
+    val fromAddress: String,
+    val toAddress: List<String>,
+    val emlFile: List<String>,
+    val updateDate: Boolean,
+    val updateMessageId: Boolean,
+    val useParallel: Boolean
 )
 
-fun getSettingsFromText(text: String): Settings? {
-    return Klaxon().parse<Settings>(text)
+fun getSettingsFromText(text: String): JsonObject {
+    return Parser.default().parse(StringBuilder(text)) as JsonObject
 }
 
-fun getSettings(file: String): Settings? {
+fun getSettings(file: String): JsonObject {
     return getSettingsFromText(File(file).readText())
+}
+
+fun mapSettings(json: JsonObject): Settings {
+    return Settings(
+        json.string("smtpHost")!!,
+        json.int("smtpPort")!!,
+        json.string("fromAddress")!!,
+        json.array<String>("toAddress")!!.toList(),
+        json.array<String>("emlFile")!!.toList(),
+        json.boolean("updateDate") ?: true,
+        json.boolean("updateMessageId") ?: true,
+        json.boolean("useParallel") ?: false
+    )
+}
+
+fun <T> checkJsonValue(json: JsonObject, name: String, check: KFunction1<String, T?>) {
+    try {
+        if (name in json)
+            check(name)
+    } catch (e: Exception) {
+        throw Exception("$name: Invalid type")
+    }
+}
+
+fun checkJsonStringArrayValue(json: JsonObject, name: String) {
+    if (name in json) {
+        val elm = try {
+            json.array<Any>(name)!!.find { it !is String }
+        } catch (e: Exception) {
+            throw Exception("$name: Invalid type (array)")
+        }
+
+        if (elm != null)
+            throw Exception("$name: Invalid type (element): $elm")
+    }
+}
+
+fun checkSettings(json: JsonObject): Unit {
+    val names = listOf("smtpHost", "smtpPort", "fromAddress", "toAddress", "emlFile")
+    val key = names.find { it !in json }
+    if (key != null)
+        throw Exception("$key key does not exist")
+
+    checkJsonValue(json, "smtpHost", json::string)
+    checkJsonValue(json, "smtpPort", json::int)
+    checkJsonValue(json, "fromAddress", json::string)
+    checkJsonStringArrayValue(json, "toAddress")
+    checkJsonStringArrayValue(json, "emlFile")
+    checkJsonValue(json, "updateDate", json::boolean)
+    checkJsonValue(json, "updateMessageId", json::boolean)
+    checkJsonValue(json, "useParallel", json::boolean)
 }
 
 val LAST_REPLY_REGEX = Regex("""^\d{3} .+""")
@@ -231,16 +282,16 @@ fun isPositiveReply(line: String): Boolean {
     }
 }
 
-fun recvLine(reader: BufferedReader): String {
+fun recvLine(reader: BufferedReader, useParallel: Boolean = false): String {
     while (true) {
-        val line = reader.readLine()?.trim() ?: throw IOException("Connection closed by foreign host")
-        println(getCurrentIdPrefix() + "recv: $line")
+        val line = reader.readLine()?.trim() ?: throw Exception("Connection closed by foreign host")
+        println(makeIdPrefix(useParallel) + "recv: $line")
 
         if (isLastReply(line)) {
             if (isPositiveReply(line))
                 return line
 
-            throw IOException(line)
+            throw Exception(line)
         }
     }
 }
@@ -249,8 +300,8 @@ fun replaceCrlfDot(cmd: String): String {
     return if (cmd == "$CRLF.") "<CRLF>." else cmd
 }
 
-fun sendLine(output: OutputStream, cmd: String): Unit {
-    println(getCurrentIdPrefix() + "send: " + replaceCrlfDot(cmd))
+fun sendLine(output: OutputStream, cmd: String, useParallel: Boolean = false): Unit {
+    println(makeIdPrefix(useParallel) + "send: " + replaceCrlfDot(cmd))
 
     output.write((cmd + CRLF).toByteArray())
     output.flush()
@@ -258,10 +309,10 @@ fun sendLine(output: OutputStream, cmd: String): Unit {
 
 typealias SendCmd = (String) -> String
 
-fun makeSendCmd(reader: BufferedReader, output: OutputStream): SendCmd {
+fun makeSendCmd(reader: BufferedReader, output: OutputStream, useParallel: Boolean): SendCmd {
     return { cmd ->
-        sendLine(output, cmd)
-        recvLine(reader)
+        sendLine(output, cmd, useParallel)
+        recvLine(reader, useParallel)
     }
 }
 
@@ -296,42 +347,42 @@ fun sendRset(send: SendCmd): Unit {
 
 fun sendMessages(settings: Settings, emlFiles: List<String>): Unit {
     val addr = InetAddress.getByName(settings.smtpHost)
-    Socket(addr, settings.smtpPort!!).use { socket ->
-        socket.soTimeout = 1000
-
+    Socket(addr, settings.smtpPort).use { socket ->
         val bufReader = BufferedReader(InputStreamReader(socket.getInputStream()))
         val output = socket.getOutputStream()
-        val send = makeSendCmd(bufReader, output)
+        val send = makeSendCmd(bufReader, output, settings.useParallel)
 
-        recvLine(bufReader)
+        recvLine(bufReader, settings.useParallel)
         sendHello(send)
 
-        var mailSent = false
+        var reset = false
         for (file in emlFiles) {
             if (!File(file).exists()) {
                 println("$file: EML file does not exist")
                 continue
             }
 
-            if (mailSent) {
+            if (reset) {
                 println("---")
                 sendRset(send)
             }
 
-            sendFrom(send, settings.fromAddress!!)
-            sendRcptTo(send, settings.toAddress!!)
+            sendFrom(send, settings.fromAddress)
+            sendRcptTo(send, settings.toAddress)
             sendData(send)
-            sendRawBytes(output, file, settings.updateDate, settings.updateMessageId)
+
+            try {
+                sendMail(output, file, settings.updateDate, settings.updateMessageId, settings.useParallel)
+            } catch (e: Exception) {
+                throw Exception("$file: ${e.message}")
+            }
+
             sendCrlfDot(send)
-            mailSent = true
+            reset = true
         }
 
         sendQuit(send)
     }
-}
-
-fun sendOneMessage(settings: Settings, file: String) {
-    sendMessages(settings, listOf(file))
 }
 
 fun makeJsonSample(): String {
@@ -366,35 +417,19 @@ fun printVersion() {
     println("SendEML / Version: $VERSION")
 }
 
-fun checkSettings(settings: Settings): Unit {
-    fun getNullKey(s: Settings): String {
-        return when {
-            s.smtpHost == null -> "smtpHost"
-            s.smtpPort == null -> "smtpPort"
-            s.fromAddress == null -> "fromAddress"
-            s.toAddress == null -> "toAddress"
-            s.emlFile == null -> "emlFile"
-            else -> ""
-        }
-    }
-
-    val nullKey = getNullKey(settings)
-    if (nullKey.isNotEmpty())
-        throw IOException("$nullKey key does not exist")
-}
-
 fun procJsonFile(json_file: String): Unit {
     if (!File(json_file).exists())
-        throw IOException("Json file does not exist")
+        throw Exception("Json file does not exist")
 
-    val settings = getSettings(json_file) ?: throw IOException("Failed to parse")
-    checkSettings(settings)
+    val json = getSettings(json_file)
+    checkSettings(json)
+    val settings = mapSettings(json)
 
     if (settings.useParallel) {
-        USE_PARALLEL = true
-        settings.emlFile!!.parallelStream().forEach { sendOneMessage(settings, it) }
+        settings.emlFile.parallelStream().forEach {
+            sendMessages(settings, listOf(it)) }
     } else {
-        sendMessages(settings, settings.emlFile!!);
+        sendMessages(settings, settings.emlFile);
     }
 }
 
@@ -413,7 +448,7 @@ fun main(args: Array<String>) {
         try {
             procJsonFile(json_file)
         } catch (e: Exception) {
-            println("$json_file: ${e.message}")
+            println("error: $json_file: ${e.message}")
         }
     }
 }

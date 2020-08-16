@@ -336,12 +336,12 @@ Message-ID:
     }
 
     @org.junit.jupiter.api.Test
-    fun replaceRawBytes() {
+    fun replaceMail() {
         val mail = makeSimpleMail()
-        val replMailNoupdate = app.replaceRawBytes(mail, false, false)
+        val replMailNoupdate = app.replaceMail(mail, false, false)
         assertEquals(mail, replMailNoupdate)
 
-        val replMail = app.replaceRawBytes(mail, true, true)
+        val replMail = app.replaceMail(mail, true, true)
         assertNotEquals(mail, replMail)
         assertArrayNotEquals(mail, replMail)
 
@@ -350,15 +350,15 @@ Message-ID:
         assertArrayEquals(mailLast100, replMailLast100)
 
         val invalidMail = makeInvalidMail()
-        org.junit.jupiter.api.assertThrows<IOException> { app.replaceRawBytes(invalidMail, true, true) }
+        org.junit.jupiter.api.assertThrows<Exception> { app.replaceMail(invalidMail, true, true) }
     }
 
     @org.junit.jupiter.api.Test
-    fun getSettings() {
+    fun getAndMapSettings() {
         val file = createTempFile()
         file.writeText(app.makeJsonSample())
 
-        val settings = app.getSettings(file.path)
+        val settings = app.mapSettings(app.getSettings(file.path))
         assertEquals("172.16.3.151", settings?.smtpHost)
         assertEquals(25, settings?.smtpPort)
         assertEquals("a001@ah62.example.jp", settings?.fromAddress)
@@ -408,20 +408,20 @@ Message-ID:
     }
 
     @org.junit.jupiter.api.Test
-    fun sendRawBytes() {
+    fun sendMail() {
         val file = createTempFile()
         val mail = makeSimpleMail()
         file.writeBytes(mail)
 
         val fileOutStream = ByteArrayOutputStream()
         val sendLine = getStdout() {
-            app.sendRawBytes(fileOutStream, file.path, false, false)
+            app.sendMail(fileOutStream, file.path, false, false)
         }
         assertEquals("send: ${file.path}\r\n", sendLine)
         assertArrayEquals(mail, fileOutStream.toByteArray())
 
         val fileOutStream2 = ByteArrayOutputStream()
-        app.sendRawBytes(fileOutStream2, file.path, true, true)
+        app.sendMail(fileOutStream2, file.path, true, true)
         assertArrayNotEquals(mail, fileOutStream2.toByteArray())
     }
 
@@ -434,10 +434,10 @@ Message-ID:
         assertEquals("recv: 250 OK\r\n", recvLine)
 
         var bufReader2 = BufferedReader(StringReader(""))
-        org.junit.jupiter.api.assertThrows<IOException> { app.recvLine(bufReader2) }
+        org.junit.jupiter.api.assertThrows<Exception> { app.recvLine(bufReader2) }
 
         var bufReader3 = BufferedReader(StringReader("554 Transaction failed\r\n"))
-        org.junit.jupiter.api.assertThrows<IOException> { app.recvLine(bufReader3) }
+        org.junit.jupiter.api.assertThrows<Exception> { app.recvLine(bufReader3) }
     }
 
     @org.junit.jupiter.api.Test
@@ -529,20 +529,24 @@ Message-ID:
     fun checkSettings() {
         fun checkNoKey(key: String) {
             val json = app.makeJsonSample()
-            val noKey = Regex(key).replaceFirst(json, "X-$key")
+            val noKey = json.replace(key, "X-$key")
             app.checkSettings(app.getSettingsFromText(noKey)!!)
         }
 
-        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("smtpHost") }
-        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("smtpPort") }
-        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("fromAddress") }
-        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("toAddress") }
-        org.junit.jupiter.api.assertThrows<IOException> { checkNoKey("emlFile") }
-        org.junit.jupiter.api.assertDoesNotThrow { checkNoKey("testKey") }
+        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("smtpHost") }
+        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("smtpPort") }
+        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("fromAddress") }
+        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("toAddress") }
+        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("emlFile") }
+        org.junit.jupiter.api.assertDoesNotThrow {
+            checkNoKey("updateDate")
+            checkNoKey("updateMessage")
+            checkNoKey("useParallel")
+        }
     }
 
     @org.junit.jupiter.api.Test
     fun procJsonFile() {
-        org.junit.jupiter.api.assertThrows<IOException> { app.procJsonFile("__test__") }
+        org.junit.jupiter.api.assertThrows<Exception> { app.procJsonFile("__test__") }
     }
 }
