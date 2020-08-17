@@ -345,14 +345,14 @@ fun sendRset(send: SendCmd): Unit {
     send("RSET")
 }
 
-fun sendMessages(settings: Settings, emlFiles: List<String>): Unit {
+fun sendMessages(settings: Settings, emlFiles: List<String>, useParallel: Boolean): Unit {
     val addr = InetAddress.getByName(settings.smtpHost)
     Socket(addr, settings.smtpPort).use { socket ->
         val bufReader = BufferedReader(InputStreamReader(socket.getInputStream()))
         val output = socket.getOutputStream()
-        val send = makeSendCmd(bufReader, output, settings.useParallel)
+        val send = makeSendCmd(bufReader, output, useParallel)
 
-        recvLine(bufReader, settings.useParallel)
+        recvLine(bufReader, useParallel)
         sendHello(send)
 
         var reset = false
@@ -372,7 +372,7 @@ fun sendMessages(settings: Settings, emlFiles: List<String>): Unit {
             sendData(send)
 
             try {
-                sendMail(output, file, settings.updateDate, settings.updateMessageId, settings.useParallel)
+                sendMail(output, file, settings.updateDate, settings.updateMessageId, useParallel)
             } catch (e: Exception) {
                 throw Exception("$file: ${e.message}")
             }
@@ -425,11 +425,12 @@ fun procJsonFile(json_file: String): Unit {
     checkSettings(json)
     val settings = mapSettings(json)
 
-    if (settings.useParallel) {
+    if (settings.useParallel && settings.emlFile.size > 1) {
         settings.emlFile.parallelStream().forEach {
-            sendMessages(settings, listOf(it)) }
+            sendMessages(settings, listOf(it), true)
+        }
     } else {
-        sendMessages(settings, settings.emlFile);
+        sendMessages(settings, settings.emlFile, false);
     }
 }
 
