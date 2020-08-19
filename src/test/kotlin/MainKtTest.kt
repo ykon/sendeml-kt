@@ -3,8 +3,10 @@
  * Licensed under the MIT License.
  */
 
+import com.beust.klaxon.JsonObject
 import org.junit.jupiter.api.Assertions.*
 import java.io.*
+import kotlin.reflect.KFunction1
 
 typealias SendCmd = (String) -> String
 
@@ -548,5 +550,68 @@ Message-ID:
     @org.junit.jupiter.api.Test
     fun procJsonFile() {
         org.junit.jupiter.api.assertThrows<Exception> { app.procJsonFile("__test__") }
+    }
+
+    @org.junit.jupiter.api.Test
+    fun checkJsonValue() {
+        fun <T> check(jsonStr: JsonObject, check: KFunction1<String, T?>) {
+            app.checkJsonValue(jsonStr, "test", check)
+        }
+
+        fun <T> checkError(jsonStr: JsonObject, check: KFunction1<String, T?>, expected: String) {
+            try {
+                check(jsonStr, check)
+            } catch (e: Exception) {
+                assertEquals(expected, e.message)
+            }
+        }
+
+        val jsonStr = app.getSettingsFromText("""{"test": "172.16.3.151"}""")
+        val jsonNumber = app.getSettingsFromText("""{"test": 172}""")
+        val jsonTrue = app.getSettingsFromText("""{"test": true}""")
+        val jsonFalse = app.getSettingsFromText("""{"test": false}""")
+
+        org.junit.jupiter.api.assertDoesNotThrow {
+            check(jsonStr, jsonStr::string)
+            check(jsonNumber, jsonNumber::int)
+            check(jsonTrue, jsonTrue::boolean)
+            check(jsonFalse, jsonFalse::boolean)
+        }
+
+        org.junit.jupiter.api.assertThrows<Exception> { check(jsonStr, jsonStr::int) }
+        checkError(jsonStr, jsonStr::boolean, "test: Invalid type: 172.16.3.151")
+
+        org.junit.jupiter.api.assertThrows<Exception> { check(jsonNumber, jsonNumber::string) }
+        checkError(jsonNumber, jsonNumber::boolean, "test: Invalid type: 172")
+
+        org.junit.jupiter.api.assertThrows<Exception> { check(jsonTrue, jsonTrue::string) }
+        checkError(jsonTrue, jsonTrue::int, "test: Invalid type: true")
+
+        org.junit.jupiter.api.assertThrows<Exception> { check(jsonFalse, jsonFalse::string) }
+        checkError(jsonFalse, jsonFalse::int, "test: Invalid type: false")
+    }
+
+    @org.junit.jupiter.api.Test
+    fun checkJsonStringArrayValue() {
+        fun check(jsonStr: JsonObject) {
+            app.checkJsonStringArrayValue(jsonStr, "test")
+        }
+
+        fun checkError(jsonStr: JsonObject, expected: String) {
+            try {
+                check(jsonStr)
+            } catch (e: Exception) {
+                assertEquals(expected, e.message)
+            }
+        }
+
+        val jsonArray = app.getSettingsFromText("""{"test": ["172.16.3.151", "172.16.3.152", "172.16.3.153"]}""")
+        org.junit.jupiter.api.assertDoesNotThrow { check(jsonArray) }
+
+        val jsonStr = app.getSettingsFromText("""{"test": "172.16.3.151"}""")
+        checkError(jsonStr, "test: Invalid type (array): 172.16.3.151")
+
+        val jsonInvalidArray = app.getSettingsFromText("""{"test": ["172.16.3.151", "172.16.3.152", 172]}""")
+        checkError(jsonInvalidArray, "test: Invalid type (element): 172")
     }
 }

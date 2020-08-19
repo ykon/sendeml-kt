@@ -232,11 +232,12 @@ fun mapSettings(json: JsonObject): Settings {
 }
 
 fun <T> checkJsonValue(json: JsonObject, name: String, check: KFunction1<String, T?>) {
-    try {
-        if (name in json)
+    if (name in json) {
+        try {
             check(name)
-    } catch (e: Exception) {
-        throw Exception("$name: Invalid type")
+        } catch (e: Exception) {
+            throw Exception("$name: Invalid type: ${json[name]}")
+        }
     }
 }
 
@@ -245,7 +246,7 @@ fun checkJsonStringArrayValue(json: JsonObject, name: String) {
         val elm = try {
             json.array<Any>(name)!!.find { it !is String }
         } catch (e: Exception) {
-            throw Exception("$name: Invalid type (array)")
+            throw Exception("$name: Invalid type (array): ${json[name]}")
         }
 
         if (elm != null)
