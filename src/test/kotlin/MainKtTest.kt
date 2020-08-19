@@ -400,7 +400,7 @@ Message-ID:
 
     private fun getStdout(block: () -> Unit): String {
         val stdOutStream = ByteArrayOutputStream()
-        useSetStdout() {
+        useSetStdout {
             System.setOut(PrintStream(stdOutStream))
             block()
         }
@@ -414,7 +414,7 @@ Message-ID:
         file.writeBytes(mail)
 
         val fileOutStream = ByteArrayOutputStream()
-        val sendLine = getStdout() {
+        val sendLine = getStdout {
             app.sendMail(fileOutStream, file.path, false, false)
         }
         assertEquals("send: ${file.path}\r\n", sendLine)
@@ -427,7 +427,7 @@ Message-ID:
 
     @org.junit.jupiter.api.Test
     fun recvLine() {
-        val recvLine = getStdout() {
+        val recvLine = getStdout {
             val bufReader = BufferedReader(StringReader("250 OK\r\n"))
             assertEquals("250 OK", app.recvLine(bufReader))
         }
