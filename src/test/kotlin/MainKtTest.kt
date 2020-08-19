@@ -290,7 +290,7 @@ Message-ID:
         assertNotEquals(midLine, rMidLine3)
 
         val (foldedHeader, _) = app.splitMail(makeFoldedMail())!!
-        var (fDateLine, fMidLine) = replace(foldedHeader, true, true)
+        val (fDateLine, fMidLine) = replace(foldedHeader, true, true)
         assertEquals(1, fDateLine.count { it == '\n' })
         assertEquals(1, fMidLine.count { it == '\n' })
     }
@@ -359,16 +359,16 @@ Message-ID:
         file.writeText(app.makeJsonSample())
 
         val settings = app.mapSettings(app.getSettings(file.path))
-        assertEquals("172.16.3.151", settings?.smtpHost)
-        assertEquals(25, settings?.smtpPort)
-        assertEquals("a001@ah62.example.jp", settings?.fromAddress)
+        assertEquals("172.16.3.151", settings.smtpHost)
+        assertEquals(25, settings.smtpPort)
+        assertEquals("a001@ah62.example.jp", settings.fromAddress)
         assertTrue(listOf("a001@ah62.example.jp", "a002@ah62.example.jp", "a003@ah62.example.jp")
-                == settings?.toAddress)
+                == settings.toAddress)
         assertTrue(listOf("test1.eml", "test2.eml", "test3.eml")
-                == settings?.emlFile)
-        assertEquals(true, settings?.updateDate)
-        assertEquals(true, settings?.updateMessageId)
-        assertEquals(false, settings?.useParallel)
+                == settings.emlFile)
+        assertEquals(true, settings.updateDate)
+        assertEquals(true, settings.updateMessageId)
+        assertEquals(false, settings.useParallel)
     }
 
     @org.junit.jupiter.api.Test
@@ -428,15 +428,15 @@ Message-ID:
     @org.junit.jupiter.api.Test
     fun recvLine() {
         val recvLine = getStdout() {
-            var bufReader = BufferedReader(StringReader("250 OK\r\n"))
+            val bufReader = BufferedReader(StringReader("250 OK\r\n"))
             assertEquals("250 OK", app.recvLine(bufReader))
         }
         assertEquals("recv: 250 OK\r\n", recvLine)
 
-        var bufReader2 = BufferedReader(StringReader(""))
+        val bufReader2 = BufferedReader(StringReader(""))
         org.junit.jupiter.api.assertThrows<Exception> { app.recvLine(bufReader2) }
 
-        var bufReader3 = BufferedReader(StringReader("554 Transaction failed\r\n"))
+        val bufReader3 = BufferedReader(StringReader("554 Transaction failed\r\n"))
         org.junit.jupiter.api.assertThrows<Exception> { app.recvLine(bufReader3) }
     }
 
@@ -530,7 +530,7 @@ Message-ID:
         fun checkNoKey(key: String) {
             val json = app.makeJsonSample()
             val noKey = json.replace(key, "X-$key")
-            app.checkSettings(app.getSettingsFromText(noKey)!!)
+            app.checkSettings(app.getSettingsFromText(noKey))
         }
 
         org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("smtpHost") }
