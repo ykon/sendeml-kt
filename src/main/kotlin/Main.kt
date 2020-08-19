@@ -235,7 +235,7 @@ fun <T> checkJsonValue(json: JsonObject, name: String, check: KFunction1<String,
     if (name in json) {
         try {
             check(name)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             throw Exception("$name: Invalid type: ${json[name]}")
         }
     }
@@ -245,7 +245,7 @@ fun checkJsonStringArrayValue(json: JsonObject, name: String) {
     if (name in json) {
         val elm = try {
             json.array<Any>(name)!!.find { it !is String }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             throw Exception("$name: Invalid type (array): ${json[name]}")
         }
 

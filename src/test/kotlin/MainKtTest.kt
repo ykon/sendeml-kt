@@ -4,9 +4,12 @@
  */
 
 import com.beust.klaxon.JsonObject
+import com.beust.klaxon.Parser
 import org.junit.jupiter.api.Assertions.*
 import java.io.*
 import kotlin.reflect.KFunction1
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.assertDoesNotThrow
 
 typealias SendCmd = (String) -> String
 
@@ -352,7 +355,7 @@ Message-ID:
         assertArrayEquals(mailLast100, replMailLast100)
 
         val invalidMail = makeInvalidMail()
-        org.junit.jupiter.api.assertThrows<Exception> { app.replaceMail(invalidMail, true, true) }
+        assertThrows<Exception> { app.replaceMail(invalidMail, true, true) }
     }
 
     @org.junit.jupiter.api.Test
@@ -436,10 +439,10 @@ Message-ID:
         assertEquals("recv: 250 OK\r\n", recvLine)
 
         val bufReader2 = BufferedReader(StringReader(""))
-        org.junit.jupiter.api.assertThrows<Exception> { app.recvLine(bufReader2) }
+        assertThrows<Exception> { app.recvLine(bufReader2) }
 
         val bufReader3 = BufferedReader(StringReader("554 Transaction failed\r\n"))
-        org.junit.jupiter.api.assertThrows<Exception> { app.recvLine(bufReader3) }
+        assertThrows<Exception> { app.recvLine(bufReader3) }
     }
 
     @org.junit.jupiter.api.Test
@@ -535,12 +538,13 @@ Message-ID:
             app.checkSettings(app.getSettingsFromText(noKey))
         }
 
-        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("smtpHost") }
-        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("smtpPort") }
-        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("fromAddress") }
-        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("toAddress") }
-        org.junit.jupiter.api.assertThrows<Exception> { checkNoKey("emlFile") }
-        org.junit.jupiter.api.assertDoesNotThrow {
+        assertThrows<Exception> { checkNoKey("smtpHost") }
+        assertThrows<Exception> { checkNoKey("smtpPort") }
+        assertThrows<Exception> { checkNoKey("fromAddress") }
+        assertThrows<Exception> { checkNoKey("toAddress") }
+        assertThrows<Exception> { checkNoKey("emlFile") }
+
+        assertDoesNotThrow {
             checkNoKey("updateDate")
             checkNoKey("updateMessage")
             checkNoKey("useParallel")
@@ -549,7 +553,11 @@ Message-ID:
 
     @org.junit.jupiter.api.Test
     fun procJsonFile() {
-        org.junit.jupiter.api.assertThrows<Exception> { app.procJsonFile("__test__") }
+        assertThrows<Exception> { app.procJsonFile("__test__") }
+    }
+
+    private fun String.toJson(): JsonObject {
+        return Parser.default().parse(StringBuilder(this)) as JsonObject
     }
 
     @org.junit.jupiter.api.Test
@@ -566,38 +574,38 @@ Message-ID:
             }
         }
 
-        val jsonStr = app.getSettingsFromText("""{"test": "172.16.3.151"}""")
-        val jsonNumber = app.getSettingsFromText("""{"test": 172}""")
-        val jsonTrue = app.getSettingsFromText("""{"test": true}""")
-        val jsonFalse = app.getSettingsFromText("""{"test": false}""")
+        val jsonStr = """{"test": "172.16.3.151"}""".toJson()
+        val jsonNumber = """{"test": 172}""".toJson()
+        val jsonTrue = """{"test": true}""".toJson()
+        val jsonFalse = """{"test": false}""".toJson()
 
-        org.junit.jupiter.api.assertDoesNotThrow {
+        assertDoesNotThrow {
             check(jsonStr, jsonStr::string)
             check(jsonNumber, jsonNumber::int)
             check(jsonTrue, jsonTrue::boolean)
             check(jsonFalse, jsonFalse::boolean)
         }
 
-        org.junit.jupiter.api.assertThrows<Exception> { check(jsonStr, jsonStr::int) }
+        assertThrows<Exception> { check(jsonStr, jsonStr::int) }
         checkError(jsonStr, jsonStr::boolean, "test: Invalid type: 172.16.3.151")
 
-        org.junit.jupiter.api.assertThrows<Exception> { check(jsonNumber, jsonNumber::string) }
+        assertThrows<Exception> { check(jsonNumber, jsonNumber::string) }
         checkError(jsonNumber, jsonNumber::boolean, "test: Invalid type: 172")
 
-        org.junit.jupiter.api.assertThrows<Exception> { check(jsonTrue, jsonTrue::string) }
+        assertThrows<Exception> { check(jsonTrue, jsonTrue::string) }
         checkError(jsonTrue, jsonTrue::int, "test: Invalid type: true")
 
-        org.junit.jupiter.api.assertThrows<Exception> { check(jsonFalse, jsonFalse::string) }
+        assertThrows<Exception> { check(jsonFalse, jsonFalse::string) }
         checkError(jsonFalse, jsonFalse::int, "test: Invalid type: false")
     }
 
     @org.junit.jupiter.api.Test
     fun checkJsonStringArrayValue() {
-        fun check(jsonStr: JsonObject) {
-            app.checkJsonStringArrayValue(jsonStr, "test")
+        fun check(jsonStr: String) {
+            app.checkJsonStringArrayValue(jsonStr.toJson(), "test")
         }
 
-        fun checkError(jsonStr: JsonObject, expected: String) {
+        fun checkError(jsonStr: String, expected: String) {
             try {
                 check(jsonStr)
             } catch (e: Exception) {
@@ -605,13 +613,13 @@ Message-ID:
             }
         }
 
-        val jsonArray = app.getSettingsFromText("""{"test": ["172.16.3.151", "172.16.3.152", "172.16.3.153"]}""")
-        org.junit.jupiter.api.assertDoesNotThrow { check(jsonArray) }
+        val jsonArray = """{"test": ["172.16.3.151", "172.16.3.152", "172.16.3.153"]}"""
+        assertDoesNotThrow { check(jsonArray) }
 
-        val jsonStr = app.getSettingsFromText("""{"test": "172.16.3.151"}""")
+        val jsonStr = """{"test": "172.16.3.151"}"""
         checkError(jsonStr, "test: Invalid type (array): 172.16.3.151")
 
-        val jsonInvalidArray = app.getSettingsFromText("""{"test": ["172.16.3.151", "172.16.3.152", 172]}""")
+        val jsonInvalidArray = """{"test": ["172.16.3.151", "172.16.3.152", 172]}"""
         checkError(jsonInvalidArray, "test: Invalid type (element): 172")
     }
 }
