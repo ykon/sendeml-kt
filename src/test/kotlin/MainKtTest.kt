@@ -95,7 +95,7 @@ Message-ID:
         return makeSimpleMailText().replace("\r\n\r\n", "").toByteArray()
     }
 
-    private fun assertArrayNotEquals(a1: ByteArray, a2: ByteArray): Unit {
+    private fun assertArrayNotEquals(a1: ByteArray, a2: ByteArray) {
         assertEquals(false, a1.contentEquals(a2))
     }
 
@@ -179,13 +179,13 @@ Message-ID:
     fun matchHeaderField() {
         val test = { s1: String, s2: String -> app.matchHeaderField(s1.toByteArray(), s2.toByteArray()) }
 
-        assertTrue(test("Test:", "Test:"));
-        assertTrue(test("Test: ", "Test:"));
-        assertTrue(test("Test:x", "Test:"));
+        assertTrue(test("Test:", "Test:"))
+        assertTrue(test("Test: ", "Test:"))
+        assertTrue(test("Test:x", "Test:"))
 
-        assertFalse(test("", "Test:"));
-        assertFalse(test("T", "Test:"));
-        assertFalse(test("Test", "Test:"));
+        assertFalse(test("", "Test:"))
+        assertFalse(test("T", "Test:"))
+        assertFalse(test("Test", "Test:"))
     }
 
     @org.junit.jupiter.api.Test
@@ -277,15 +277,15 @@ Message-ID:
             return Pair(getDateLine(rHeader), getMessageIdLine(rHeader))
         }
 
-        val (rDateLine, rMidLine) = replace(header, true, true);
+        val (rDateLine, rMidLine) = replace(header, true, true)
         assertNotEquals(dateLine, rDateLine)
         assertNotEquals(midLine, rMidLine)
 
-        val (rDateLine2, rMidLine2) = replace(header, true, false);
+        val (rDateLine2, rMidLine2) = replace(header, true, false)
         assertNotEquals(dateLine, rDateLine2)
         assertEquals(midLine, rMidLine2)
 
-        val (rDateLine3, rMidLine3) = replace(header, false, true);
+        val (rDateLine3, rMidLine3) = replace(header, false, true)
         assertEquals(dateLine, rDateLine3)
         assertNotEquals(midLine, rMidLine3)
 
@@ -373,10 +373,10 @@ Message-ID:
 
     @org.junit.jupiter.api.Test
     fun isLastReply() {
-        assertFalse(app.isLastReply("250-First line"));
-        assertFalse(app.isLastReply("250-Second line"));
-        assertFalse(app.isLastReply("250-234 Text beginning with numbers"));
-        assertTrue(app.isLastReply("250 The last line"));
+        assertFalse(app.isLastReply("250-First line"))
+        assertFalse(app.isLastReply("250-Second line"))
+        assertFalse(app.isLastReply("250-234 Text beginning with numbers"))
+        assertTrue(app.isLastReply("250 The last line"))
     }
 
     @org.junit.jupiter.api.Test

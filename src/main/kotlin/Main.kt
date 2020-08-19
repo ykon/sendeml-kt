@@ -123,7 +123,7 @@ fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boole
     if (isNotUpdate(updateDate, updateMessageId))
         return header
 
-    fun removeFolding(lines: MutableList<ByteArray>, idx: Int): Unit {
+    fun removeFolding(lines: MutableList<ByteArray>, idx: Int) {
         for (i in idx until lines.size) {
             if (isFirstWsp(lines[i]))
                 lines[i] = ByteArray(0)
@@ -132,7 +132,7 @@ fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boole
         }
     }
 
-    fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): Unit {
+    fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String) {
         if (update) {
             val idx = lines.indexOfFirst(matchLine)
             if (idx != -1) {
@@ -191,7 +191,7 @@ fun makeIdPrefix(useParallel: Boolean): String {
     return if (useParallel) "id: ${Thread.currentThread().id}, " else ""
 }
 
-fun sendMail(output: OutputStream, file: String, updateDate: Boolean, updateMessageId: Boolean, useParallel: Boolean = false): Unit {
+fun sendMail(output: OutputStream, file: String, updateDate: Boolean, updateMessageId: Boolean, useParallel: Boolean = false) {
     println(makeIdPrefix(useParallel) + "send: $file")
 
     val buf = replaceMail(File(file).readBytes(), updateDate, updateMessageId)
@@ -253,7 +253,7 @@ fun checkJsonStringArrayValue(json: JsonObject, name: String) {
     }
 }
 
-fun checkSettings(json: JsonObject): Unit {
+fun checkSettings(json: JsonObject) {
     val names = listOf("smtpHost", "smtpPort", "fromAddress", "toAddress", "emlFile")
     val key = names.find { it !in json }
     if (key != null)
@@ -300,7 +300,7 @@ fun replaceCrlfDot(cmd: String): String {
     return if (cmd == "$CRLF.") "<CRLF>." else cmd
 }
 
-fun sendLine(output: OutputStream, cmd: String, useParallel: Boolean = false): Unit {
+fun sendLine(output: OutputStream, cmd: String, useParallel: Boolean = false) {
     println(makeIdPrefix(useParallel) + "send: " + replaceCrlfDot(cmd))
 
     output.write((cmd + CRLF).toByteArray())
@@ -316,36 +316,36 @@ fun makeSendCmd(reader: BufferedReader, output: OutputStream, useParallel: Boole
     }
 }
 
-fun sendHello(send: SendCmd): Unit {
+fun sendHello(send: SendCmd) {
     send("EHLO localhost")
 }
 
-fun sendFrom(send: SendCmd, fromAddr: String): Unit {
+fun sendFrom(send: SendCmd, fromAddr: String) {
     send("MAIL FROM: <$fromAddr>")
 }
 
-fun sendRcptTo(send: SendCmd, toAddrs: List<String>): Unit {
+fun sendRcptTo(send: SendCmd, toAddrs: List<String>) {
     for (addr in toAddrs)
         send("RCPT TO: <$addr>")
 }
 
-fun sendData(send: SendCmd): Unit {
+fun sendData(send: SendCmd) {
     send("DATA")
 }
 
-fun sendCrlfDot(send: SendCmd): Unit {
+fun sendCrlfDot(send: SendCmd) {
     send("$CRLF.")
 }
 
-fun sendQuit(send: SendCmd): Unit {
+fun sendQuit(send: SendCmd) {
     send("QUIT")
 }
 
-fun sendRset(send: SendCmd): Unit {
+fun sendRset(send: SendCmd) {
     send("RSET")
 }
 
-fun sendMessages(settings: Settings, emlFiles: List<String>, useParallel: Boolean): Unit {
+fun sendMessages(settings: Settings, emlFiles: List<String>, useParallel: Boolean) {
     val addr = InetAddress.getByName(settings.smtpHost)
     Socket(addr, settings.smtpPort).use { socket ->
         val bufReader = BufferedReader(InputStreamReader(socket.getInputStream()))
@@ -406,7 +406,7 @@ fun makeJsonSample(): String {
 }"""
 }
 
-fun printUsage(): Unit {
+fun printUsage() {
     println("Usage: {self} json_file ...")
     println("---")
     println("json_file sample:")
@@ -417,7 +417,7 @@ fun printVersion() {
     println("SendEML / Version: $VERSION")
 }
 
-fun procJsonFile(json_file: String): Unit {
+fun procJsonFile(json_file: String) {
     if (!File(json_file).exists())
         throw Exception("Json file does not exist")
 
@@ -430,7 +430,7 @@ fun procJsonFile(json_file: String): Unit {
             sendMessages(settings, listOf(it), true)
         }
     } else {
-        sendMessages(settings, settings.emlFile, false);
+        sendMessages(settings, settings.emlFile, false)
     }
 }
 
