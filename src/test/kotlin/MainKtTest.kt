@@ -368,9 +368,9 @@ Message-ID:
         assertEquals(25, settings.smtpPort)
         assertEquals("a001@ah62.example.jp", settings.fromAddress)
         assertTrue(listOf("a001@ah62.example.jp", "a002@ah62.example.jp", "a003@ah62.example.jp")
-                == settings.toAddress)
+                == settings.toAddresses)
         assertTrue(listOf("test1.eml", "test2.eml", "test3.eml")
-                == settings.emlFile)
+                == settings.emlFiles)
         assertEquals(true, settings.updateDate)
         assertEquals(true, settings.updateMessageId)
         assertEquals(false, settings.useParallel)
@@ -541,8 +541,8 @@ Message-ID:
         assertThrows<Exception> { checkNoKey("smtpHost") }
         assertThrows<Exception> { checkNoKey("smtpPort") }
         assertThrows<Exception> { checkNoKey("fromAddress") }
-        assertThrows<Exception> { checkNoKey("toAddress") }
-        assertThrows<Exception> { checkNoKey("emlFile") }
+        assertThrows<Exception> { checkNoKey("toAddresses") }
+        assertThrows<Exception> { checkNoKey("emlFiles") }
 
         assertDoesNotThrow {
             checkNoKey("updateDate")

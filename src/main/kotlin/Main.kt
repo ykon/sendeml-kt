@@ -203,8 +203,8 @@ data class Settings (
     val smtpHost: String,
     val smtpPort: Int,
     val fromAddress: String,
-    val toAddress: List<String>,
-    val emlFile: List<String>,
+    val toAddresses: List<String>,
+    val emlFiles: List<String>,
     val updateDate: Boolean,
     val updateMessageId: Boolean,
     val useParallel: Boolean
@@ -223,8 +223,8 @@ fun mapSettings(json: JsonObject): Settings {
         json.string("smtpHost")!!,
         json.int("smtpPort")!!,
         json.string("fromAddress")!!,
-        json.array<String>("toAddress")!!.toList(),
-        json.array<String>("emlFile")!!.toList(),
+        json.array<String>("toAddresses")!!.toList(),
+        json.array<String>("emlFiles")!!.toList(),
         json.boolean("updateDate") ?: true,
         json.boolean("updateMessageId") ?: true,
         json.boolean("useParallel") ?: false
@@ -255,7 +255,7 @@ fun checkJsonStringArrayValue(json: JsonObject, name: String) {
 }
 
 fun checkSettings(json: JsonObject) {
-    val names = listOf("smtpHost", "smtpPort", "fromAddress", "toAddress", "emlFile")
+    val names = listOf("smtpHost", "smtpPort", "fromAddress", "toAddresses", "emlFiles")
     val key = names.find { it !in json }
     if (key != null)
         throw Exception("$key key does not exist")
@@ -263,8 +263,8 @@ fun checkSettings(json: JsonObject) {
     checkJsonValue(json, "smtpHost", json::string)
     checkJsonValue(json, "smtpPort", json::int)
     checkJsonValue(json, "fromAddress", json::string)
-    checkJsonStringArrayValue(json, "toAddress")
-    checkJsonStringArrayValue(json, "emlFile")
+    checkJsonStringArrayValue(json, "toAddresses")
+    checkJsonStringArrayValue(json, "emlFiles")
     checkJsonValue(json, "updateDate", json::boolean)
     checkJsonValue(json, "updateMessageId", json::boolean)
     checkJsonValue(json, "useParallel", json::boolean)
@@ -369,7 +369,7 @@ fun sendMessages(settings: Settings, emlFiles: List<String>, useParallel: Boolea
             }
 
             sendFrom(send, settings.fromAddress)
-            sendRcptTo(send, settings.toAddress)
+            sendRcptTo(send, settings.toAddresses)
             sendData(send)
 
             try {
@@ -391,12 +391,12 @@ fun makeJsonSample(): String {
     "smtpHost": "172.16.3.151",
     "smtpPort": 25,
     "fromAddress": "a001@ah62.example.jp",
-    "toAddress": [
+    "toAddresses": [
         "a001@ah62.example.jp",
         "a002@ah62.example.jp",
         "a003@ah62.example.jp"
     ],
-    "emlFile": [
+    "emlFiles": [
         "test1.eml",
         "test2.eml",
         "test3.eml"
@@ -426,12 +426,12 @@ fun procJsonFile(json_file: String) {
     checkSettings(json)
     val settings = mapSettings(json)
 
-    if (settings.useParallel && settings.emlFile.size > 1) {
-        settings.emlFile.parallelStream().forEach {
+    if (settings.useParallel && settings.emlFiles.size > 1) {
+        settings.emlFiles.parallelStream().forEach {
             sendMessages(settings, listOf(it), true)
         }
     } else {
-        sendMessages(settings, settings.emlFile, false)
+        sendMessages(settings, settings.emlFiles, false)
     }
 }
 
