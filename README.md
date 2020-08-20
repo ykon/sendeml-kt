@@ -38,4 +38,4 @@ java -jar SendEML.jar {setting_file} ...
   - Replace "Message-ID:" line with a new random string ID.
 
 * useParallel
-  - Use parallel processing for eml files.
+  - Enable parallel processing for eml files.
