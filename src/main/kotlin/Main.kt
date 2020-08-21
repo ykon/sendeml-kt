@@ -182,7 +182,13 @@ fun replaceMail(fileBuf: ByteArray, updateDate: Boolean, updateMessageId: Boolea
     if (isNotUpdate(updateDate, updateMessageId))
         return fileBuf
 
-    val (header, body) = splitMail(fileBuf) ?: throw Exception("Invalid mail")
+    val mail = splitMail(fileBuf)
+    if (mail == null) {
+        println("error: Invalid mail: Disable updateDate, updateMessageId")
+        return fileBuf
+    }
+
+    val (header, body) =  mail
     val replHeader = replaceHeader(header, updateDate, updateMessageId)
     return combineMail(replHeader, body)
 }

@@ -355,7 +355,7 @@ Message-ID:
         assertArrayEquals(mailLast100, replMailLast100)
 
         val invalidMail = makeInvalidMail()
-        assertThrows<Exception> { app.replaceMail(invalidMail, true, true) }
+        assertArrayEquals(invalidMail, app.replaceMail(invalidMail, true, true))
     }
 
     @org.junit.jupiter.api.Test
