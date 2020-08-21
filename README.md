@@ -5,7 +5,7 @@
 
 ## Usage
 ```
-java -jar SendEML.jar {setting_file} ...
+java -jar SendEML.jar <setting_file> ...
 ```
 
 ## Setting File (sample)
