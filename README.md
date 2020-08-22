@@ -1,5 +1,5 @@
-## About
-### SendEML is a testing tool for sending raw eml files.
+## SendEML
+A testing tool for sending raw eml files.
 * SendEML-kt runs on Java 8 or newer.
   > [AdoptOpenJDK](https://adoptopenjdk.net)
 
@@ -8,7 +8,7 @@
 java -jar SendEML.jar <setting_file> ...
 ```
 
-## Setting File (sample)
+## Setting File (JSON format)
 ```
 {
     "smtpHost": "172.16.3.151",
