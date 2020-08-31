@@ -186,11 +186,13 @@ Message-ID:
 
         assertTrue(test("Test:", "Test:"))
         assertTrue(test("Test: ", "Test:"))
-        assertTrue(test("Test:x", "Test:"))
+        assertTrue(test("Test: xxx", "Test:"))
 
         assertFalse(test("", "Test:"))
         assertFalse(test("T", "Test:"))
         assertFalse(test("Test", "Test:"))
+
+        assertThrows<Exception> { test("Test: xxx", "") }
     }
 
     @org.junit.jupiter.api.Test

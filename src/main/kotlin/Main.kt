@@ -65,15 +65,13 @@ val DATE_BYTES = "Date:".toByteArray()
 val MESSAGE_ID_BYTES = "Message-ID:".toByteArray()
 
 fun matchHeader(line: ByteArray, header: ByteArray): Boolean {
+    if (header.isEmpty())
+        throw Exception("header is empty")
+
     if (line.size < header.size)
         return false
 
-    for (i in header.indices) {
-        if (header[i] != line[i])
-            return false
-    }
-
-    return true
+    return header.indices.all { i -> header[i] == line[i] }
 }
 
 fun isDateLine(line: ByteArray): Boolean {
