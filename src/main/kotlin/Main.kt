@@ -31,19 +31,19 @@ fun indexOf(buf: ByteArray, value: Byte, offset: Int): Int {
     return -1
 }
 
-fun findCrIndex(fileBuf: ByteArray, offset: Int): Int {
-    return indexOf(fileBuf, CR, offset)
+fun findCrIndex(bytes: ByteArray, offset: Int): Int {
+    return indexOf(bytes, CR, offset)
 }
 
-fun findLfIndex(fileBuf: ByteArray, offset: Int): Int {
-    return indexOf(fileBuf, LF, offset)
+fun findLfIndex(bytes: ByteArray, offset: Int): Int {
+    return indexOf(bytes, LF, offset)
 }
 
-fun findAllLfIndices(fileBuf: ByteArray): List<Int> {
+fun findAllLfIndices(bytes: ByteArray): List<Int> {
     val indices = mutableListOf<Int>()
     var offset = 0
     while (true) {
-        val idx = findLfIndex(fileBuf, offset)
+        val idx = findLfIndex(bytes, offset)
         if (idx == -1)
             return indices
 
@@ -52,10 +52,10 @@ fun findAllLfIndices(fileBuf: ByteArray): List<Int> {
     }
 }
 
-fun getRawLines(fileBuf: ByteArray): List<ByteArray> {
+fun getRawLines(bytes: ByteArray): List<ByteArray> {
     var offset = 0
-    return findAllLfIndices(fileBuf).plus(fileBuf.lastIndex).map {
-        val line = fileBuf.copyOfRange(offset, it + 1)
+    return findAllLfIndices(bytes).plus(bytes.lastIndex).map {
+        val line = bytes.copyOfRange(offset, it + 1)
         offset = it + 1
         return@map line
     }
@@ -64,7 +64,7 @@ fun getRawLines(fileBuf: ByteArray): List<ByteArray> {
 val DATE_BYTES = "Date:".toByteArray()
 val MESSAGE_ID_BYTES = "Message-ID:".toByteArray()
 
-fun matchHeaderField(line: ByteArray, header: ByteArray): Boolean {
+fun matchHeader(line: ByteArray, header: ByteArray): Boolean {
     if (line.size < header.size)
         return false
 
@@ -77,7 +77,7 @@ fun matchHeaderField(line: ByteArray, header: ByteArray): Boolean {
 }
 
 fun isDateLine(line: ByteArray): Boolean {
-    return matchHeaderField(line, DATE_BYTES)
+    return matchHeader(line, DATE_BYTES)
 }
 
 fun makeNowDateLine(): String {
@@ -87,7 +87,7 @@ fun makeNowDateLine(): String {
 }
 
 fun isMessageIdLine(line: ByteArray): Boolean {
-    return matchHeaderField(line, MESSAGE_ID_BYTES)
+    return matchHeader(line, MESSAGE_ID_BYTES)
 }
 
 fun makeRandomMessageIdLine(): String {
@@ -119,43 +119,45 @@ fun isFirstWsp(bytes: ByteArray): Boolean {
     return isWsp(bytes.firstOrNull() ?: 0)
 }
 
-fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
-    if (isNotUpdate(updateDate, updateMessageId))
-        return header
+private fun replaceLine(lines: List<ByteArray>, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): List<ByteArray> {
+    val idx = lines.indexOfFirst(matchLine)
+    if (idx == -1)
+        return lines
 
-    fun removeFolding(lines: MutableList<ByteArray>, idx: Int) {
-        for (i in idx until lines.size) {
-            if (isFirstWsp(lines[i]))
-                lines[i] = ByteArray(0)
-            else
-                break
-        }
-    }
+    val p1 = lines.take(idx)
+    val p2 = makeLine().toByteArray()
+    val p3 = lines.drop(idx + 1).dropWhile(::isFirstWsp)
 
-    fun replaceLine(lines: MutableList<ByteArray>, update: Boolean, matchLine: (ByteArray) -> Boolean, makeLine: () -> String) {
-        if (update) {
-            val idx = lines.indexOfFirst(matchLine)
-            if (idx != -1) {
-                lines[idx] = makeLine().toByteArray()
-                removeFolding(lines, idx + 1)
-            }
-        }
-    }
-
-    val lines = getRawLines(header).toMutableList()
-    replaceLine(lines, updateDate, ::isDateLine, ::makeNowDateLine)
-    replaceLine(lines, updateMessageId, ::isMessageIdLine, ::makeRandomMessageIdLine)
-    return concatBytes(lines)
+    return p1 + p2 + p3
 }
 
-fun findEmptyLine(fileBuf: ByteArray): Int {
+fun replaceDateLine(lines: List<ByteArray>): List<ByteArray> {
+    return replaceLine(lines, ::isDateLine, ::makeNowDateLine)
+}
+
+fun replaceMessageIdLine(lines: List<ByteArray>): List<ByteArray> {
+    return replaceLine(lines, ::isMessageIdLine, ::makeRandomMessageIdLine)
+}
+
+fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
+    val lines = getRawLines(header)
+    val newLines = when (Pair(updateDate, updateMessageId)) {
+        Pair(true, true) -> replaceMessageIdLine(replaceDateLine(lines))
+        Pair(true, false) -> replaceDateLine(lines)
+        Pair(false, true) -> replaceMessageIdLine(lines)
+        else -> lines
+    }
+    return concatBytes(newLines)
+}
+
+fun findEmptyLine(bytes: ByteArray): Int {
     var offset = 0
     while (true) {
-        val idx = findCrIndex(fileBuf, offset)
-        if (idx == -1 || (idx + 3) >= fileBuf.size)
+        val idx = findCrIndex(bytes, offset)
+        if (idx == -1 || (idx + 3) >= bytes.size)
             return -1
 
-        if (fileBuf[idx + 1] == LF && fileBuf[idx + 2] == CR && fileBuf[idx + 3] == LF)
+        if (bytes[idx + 1] == LF && bytes[idx + 2] == CR && bytes[idx + 3] == LF)
             return idx
 
         offset = idx + 1
@@ -168,27 +170,21 @@ fun combineMail(header: ByteArray, body: ByteArray): ByteArray {
     return concatBytes(listOf(header, EMPTY_LINE, body))
 }
 
-fun splitMail(fileBuf: ByteArray): Pair<ByteArray, ByteArray>? {
-    val idx = findEmptyLine(fileBuf)
+fun splitMail(bytes: ByteArray): Pair<ByteArray, ByteArray>? {
+    val idx = findEmptyLine(bytes)
     if (idx == -1)
         return null
 
-    val header = fileBuf.copyOfRange(0, idx)
-    val body = fileBuf.copyOfRange(idx + EMPTY_LINE.size, fileBuf.size)
+    val header = bytes.copyOfRange(0, idx)
+    val body = bytes.copyOfRange(idx + EMPTY_LINE.size, bytes.size)
     return Pair(header, body)
 }
 
-fun replaceMail(fileBuf: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
+fun replaceMail(bytes: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray? {
     if (isNotUpdate(updateDate, updateMessageId))
-        return fileBuf
+        return bytes
 
-    val mail = splitMail(fileBuf)
-    if (mail == null) {
-        println("error: Invalid mail: Disable updateDate, updateMessageId")
-        return fileBuf
-    }
-
-    val (header, body) =  mail
+    val (header, body) =  splitMail(bytes) ?: return null
     val replHeader = replaceHeader(header, updateDate, updateMessageId)
     return combineMail(replHeader, body)
 }
@@ -200,8 +196,12 @@ fun makeIdPrefix(useParallel: Boolean): String {
 fun sendMail(output: OutputStream, file: String, updateDate: Boolean, updateMessageId: Boolean, useParallel: Boolean = false) {
     println(makeIdPrefix(useParallel) + "send: $file")
 
-    val buf = replaceMail(File(file).readBytes(), updateDate, updateMessageId)
-    output.write(buf)
+    val mail = File(file).readBytes()
+    val replMail = replaceMail(mail, updateDate, updateMessageId)
+    if (replMail == null)
+        println("error: Invalid mail: Disable updateDate, updateMessageId")
+
+    output.write(replMail ?: mail)
     output.flush()
 }
 
@@ -377,13 +377,7 @@ fun sendMessages(settings: Settings, emlFiles: List<String>, useParallel: Boolea
             sendFrom(send, settings.fromAddress)
             sendRcptTo(send, settings.toAddresses)
             sendData(send)
-
-            try {
-                sendMail(output, file, settings.updateDate, settings.updateMessageId, useParallel)
-            } catch (e: Exception) {
-                throw Exception("$file: ${e.message}")
-            }
-
+            sendMail(output, file, settings.updateDate, settings.updateMessageId, useParallel)
             sendCrlfDot(send)
             reset = true
         }

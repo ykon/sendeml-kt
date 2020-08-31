@@ -181,8 +181,8 @@ Message-ID:
     }
 
     @org.junit.jupiter.api.Test
-    fun matchHeaderField() {
-        val test = { s1: String, s2: String -> app.matchHeaderField(s1.toByteArray(), s2.toByteArray()) }
+    fun matchHeader() {
+        val test = { s1: String, s2: String -> app.matchHeader(s1.toByteArray(), s2.toByteArray()) }
 
         assertTrue(test("Test:", "Test:"))
         assertTrue(test("Test: ", "Test:"))
@@ -264,17 +264,50 @@ Message-ID:
         assertFalse(app.isFirstWsp(byteArrayOf('a'.toByte(), 'b'.toByte(), '\t'.toByte())))
     }
 
+    private fun equalBytesInList(list1: List<ByteArray>, list2: List<ByteArray>): Boolean {
+        if (list1.size != list2.size)
+            return false
+
+        return list1.zip(list2).all { it.first.contentEquals(it.second) }
+    }
+
+    @org.junit.jupiter.api.Test
+    fun replaceDateLine() {
+        val fMail = makeFoldedMail()
+        val lines = app.getRawLines(fMail)
+        val newLines = app.replaceDateLine(lines)
+        assertFalse(equalBytesInList(lines, newLines))
+
+        val newMail = app.concatBytes(newLines)
+        assertArrayNotEquals(fMail, newMail)
+        assertNotEquals(getDateLine(fMail), getDateLine(newMail))
+        assertEquals(getMessageIdLine(fMail), getMessageIdLine(newMail))
+    }
+
+    @org.junit.jupiter.api.Test
+    fun replaceMessageIdLine() {
+        val fMail = makeFoldedMail()
+        val lines = app.getRawLines(fMail)
+        val newLines = app.replaceMessageIdLine(lines)
+        assertFalse(equalBytesInList(lines, newLines))
+
+        val newMail = app.concatBytes(newLines)
+        assertArrayNotEquals(fMail, newMail)
+        assertNotEquals(getMessageIdLine(fMail), getMessageIdLine(newMail))
+        assertEquals(getDateLine(fMail), getDateLine(newMail))
+    }
+
     @org.junit.jupiter.api.Test
     fun replaceHeader() {
-        val (header, _) = app.splitMail(makeSimpleMail())!!
-        val dateLine = getDateLine(header)
-        val midLine = getMessageIdLine(header)
+        val mail = makeSimpleMail()
+        val dateLine = getDateLine(mail)
+        val midLine = getMessageIdLine(mail)
 
-        val replHeaderNoupdate = app.replaceHeader(header, false, false)
-        assertArrayEquals(header, replHeaderNoupdate)
+        val replHeaderNoupdate = app.replaceHeader(mail, false, false)
+        assertArrayEquals(mail, replHeaderNoupdate)
 
-        val replHeader = app.replaceHeader(header, true, true)
-        assertArrayNotEquals(header, replHeader)
+        val replHeader = app.replaceHeader(mail, true, true)
+        assertArrayNotEquals(mail, replHeader)
 
         fun replace(header: ByteArray, update_date: Boolean, update_message_id: Boolean): Pair<String, String> {
             val rHeader = app.replaceHeader(header, update_date, update_message_id)
@@ -282,20 +315,20 @@ Message-ID:
             return Pair(getDateLine(rHeader), getMessageIdLine(rHeader))
         }
 
-        val (rDateLine, rMidLine) = replace(header, true, true)
+        val (rDateLine, rMidLine) = replace(mail, true, true)
         assertNotEquals(dateLine, rDateLine)
         assertNotEquals(midLine, rMidLine)
 
-        val (rDateLine2, rMidLine2) = replace(header, true, false)
+        val (rDateLine2, rMidLine2) = replace(mail, true, false)
         assertNotEquals(dateLine, rDateLine2)
         assertEquals(midLine, rMidLine2)
 
-        val (rDateLine3, rMidLine3) = replace(header, false, true)
+        val (rDateLine3, rMidLine3) = replace(mail, false, true)
         assertEquals(dateLine, rDateLine3)
         assertNotEquals(midLine, rMidLine3)
 
-        val (foldedHeader, _) = app.splitMail(makeFoldedMail())!!
-        val (fDateLine, fMidLine) = replace(foldedHeader, true, true)
+        val fMail = makeFoldedMail()
+        val (fDateLine, fMidLine) = replace(fMail, true, true)
         assertEquals(1, fDateLine.count { it == '\n' })
         assertEquals(1, fMidLine.count { it == '\n' })
     }
@@ -348,14 +381,14 @@ Message-ID:
 
         val replMail = app.replaceMail(mail, true, true)
         assertNotEquals(mail, replMail)
-        assertArrayNotEquals(mail, replMail)
+        assertArrayNotEquals(mail, replMail!!)
 
         val mailLast100 = mail.sliceArray((mail.size - 100) until mail.size)
         val replMailLast100 = replMail.sliceArray((replMail.size - 100) until replMail.size)
         assertArrayEquals(mailLast100, replMailLast100)
 
         val invalidMail = makeInvalidMail()
-        assertArrayEquals(invalidMail, app.replaceMail(invalidMail, true, true))
+        assertArrayEquals(null, app.replaceMail(invalidMail, true, true))
     }
 
     @org.junit.jupiter.api.Test
