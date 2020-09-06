@@ -10,6 +10,8 @@ import java.io.*
 import kotlin.reflect.KFunction1
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.assertDoesNotThrow
+import app.CR
+import app.LF
 
 typealias SendCmd = (String) -> String
 
@@ -136,25 +138,25 @@ Message-ID:
     }
 
     @org.junit.jupiter.api.Test
-    fun findCrIndex() {
+    fun findCr() {
         val mail = makeSimpleMail()
-        assertEquals(33, app.findCrIndex(mail, 0))
-        assertEquals(48, app.findCrIndex(mail, 34))
-        assertEquals(74, app.findCrIndex(mail, 58))
+        assertEquals(33, app.findCr(mail, 0))
+        assertEquals(48, app.findCr(mail, 34))
+        assertEquals(74, app.findCr(mail, 58))
     }
 
     @org.junit.jupiter.api.Test
-    fun findLfIndex() {
+    fun findLf() {
         val mail = makeSimpleMail()
-        assertEquals(34, app.findLfIndex(mail, 0))
-        assertEquals(49, app.findLfIndex(mail, 35))
-        assertEquals(75, app.findLfIndex(mail, 59))
+        assertEquals(34, app.findLf(mail, 0))
+        assertEquals(49, app.findLf(mail, 35))
+        assertEquals(75, app.findLf(mail, 59))
     }
 
     @org.junit.jupiter.api.Test
-    fun findAllLfIndices() {
+    fun findAllLf() {
         val mail = makeSimpleMail()
-        val indices = app.findAllLfIndices(mail)
+        val indices = app.findAllLf(mail)
 
         assertEquals(34, indices[0])
         assertEquals(49, indices[1])
@@ -166,9 +168,9 @@ Message-ID:
     }
 
     @org.junit.jupiter.api.Test
-    fun getRawLines() {
+    fun getLines() {
         val mail = makeSimpleMail()
-        val lines = app.getRawLines(mail)
+        val lines = app.getLines(mail)
 
         assertEquals(13, lines.size)
         assertEquals("From: a001 <a001@ah62.example.jp>\r\n", lines[0].toUtf8String())
@@ -185,12 +187,13 @@ Message-ID:
         val test = { s1: String, s2: String -> app.matchHeader(s1.toByteArray(), s2.toByteArray()) }
 
         assertTrue(test("Test:", "Test:"))
-        assertTrue(test("Test: ", "Test:"))
+        assertTrue(test("Test:   ", "Test:"))
         assertTrue(test("Test: xxx", "Test:"))
 
         assertFalse(test("", "Test:"))
         assertFalse(test("T", "Test:"))
         assertFalse(test("Test", "Test:"))
+        assertFalse(test("Xest:", "Test:"))
 
         assertThrows<Exception> { test("Test: xxx", "") }
     }
@@ -276,7 +279,7 @@ Message-ID:
     @org.junit.jupiter.api.Test
     fun replaceDateLine() {
         val fMail = makeFoldedMail()
-        val lines = app.getRawLines(fMail)
+        val lines = app.getLines(fMail)
         val newLines = app.replaceDateLine(lines)
         assertFalse(equalBytesInList(lines, newLines))
 
@@ -289,7 +292,7 @@ Message-ID:
     @org.junit.jupiter.api.Test
     fun replaceMessageIdLine() {
         val fMail = makeFoldedMail()
-        val lines = app.getRawLines(fMail)
+        val lines = app.getLines(fMail)
         val newLines = app.replaceMessageIdLine(lines)
         assertFalse(equalBytesInList(lines, newLines))
 
@@ -338,7 +341,7 @@ Message-ID:
     @org.junit.jupiter.api.Test
     fun concatBytes() {
         val mail = makeSimpleMail()
-        val lines = app.getRawLines(mail)
+        val lines = app.getLines(mail)
 
         val newMail = app.concatBytes(lines)
         assertArrayEquals(mail, newMail)
@@ -350,6 +353,18 @@ Message-ID:
         val (header, body) = app.splitMail(mail)!!
         val newMail = app.combineMail(header, body)
         assertArrayEquals(mail, newMail)
+    }
+
+    @org.junit.jupiter.api.Test
+    fun hasNextLfCrLf() {
+        val zero = 0.toChar().toByte()
+
+        assertTrue(app.hasNextLfCrLf(byteArrayOf(CR, LF, CR, LF), 0))
+        assertTrue(app.hasNextLfCrLf(byteArrayOf(zero, CR, LF, CR, LF), 1))
+
+        assertFalse(app.hasNextLfCrLf(byteArrayOf(CR, LF, CR, LF), 1))
+        assertFalse(app.hasNextLfCrLf(byteArrayOf(CR, LF, CR, zero), 0))
+        assertFalse(app.hasNextLfCrLf(byteArrayOf(CR, LF, CR, LF, zero), 1))
     }
 
     @org.junit.jupiter.api.Test

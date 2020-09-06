@@ -23,7 +23,7 @@ const val SPACE = ' '.toByte()
 const val HTAB = '\t'.toByte()
 const val CRLF = "\r\n"
 
-fun indexOf(buf: ByteArray, value: Byte, offset: Int): Int {
+fun findIndex(buf: ByteArray, value: Byte, offset: Int): Int {
     for (i in offset until buf.size) {
         if (buf[i] == value)
             return i
@@ -31,19 +31,19 @@ fun indexOf(buf: ByteArray, value: Byte, offset: Int): Int {
     return -1
 }
 
-fun findCrIndex(bytes: ByteArray, offset: Int): Int {
-    return indexOf(bytes, CR, offset)
+fun findCr(bytes: ByteArray, offset: Int): Int {
+    return findIndex(bytes, CR, offset)
 }
 
-fun findLfIndex(bytes: ByteArray, offset: Int): Int {
-    return indexOf(bytes, LF, offset)
+fun findLf(bytes: ByteArray, offset: Int): Int {
+    return findIndex(bytes, LF, offset)
 }
 
-fun findAllLfIndices(bytes: ByteArray): List<Int> {
+fun findAllLf(bytes: ByteArray): List<Int> {
     val indices = mutableListOf<Int>()
     var offset = 0
     while (true) {
-        val idx = findLfIndex(bytes, offset)
+        val idx = findLf(bytes, offset)
         if (idx == -1)
             return indices
 
@@ -52,10 +52,10 @@ fun findAllLfIndices(bytes: ByteArray): List<Int> {
     }
 }
 
-fun getRawLines(bytes: ByteArray): List<ByteArray> {
+fun getLines(bytes: ByteArray): List<ByteArray> {
     var offset = 0
-    return findAllLfIndices(bytes).plus(bytes.lastIndex).map {
-        val line = bytes.copyOfRange(offset, it + 1)
+    return findAllLf(bytes).plus(bytes.lastIndex).map {
+        val line = bytes.sliceArray(offset..it)
         offset = it + 1
         return@map line
     }
@@ -71,7 +71,7 @@ fun matchHeader(line: ByteArray, header: ByteArray): Boolean {
     if (line.size < header.size)
         return false
 
-    return header.indices.all { i -> header[i] == line[i] }
+    return line.sliceArray(header.indices).contentEquals(header)
 }
 
 fun isDateLine(line: ByteArray): Boolean {
@@ -138,7 +138,7 @@ fun replaceMessageIdLine(lines: List<ByteArray>): List<ByteArray> {
 }
 
 fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
-    val lines = getRawLines(header)
+    val lines = getLines(header)
     val newLines = when (Pair(updateDate, updateMessageId)) {
         Pair(true, true) -> replaceMessageIdLine(replaceDateLine(lines))
         Pair(true, false) -> replaceDateLine(lines)
@@ -148,14 +148,18 @@ fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boole
     return concatBytes(newLines)
 }
 
+fun hasNextLfCrLf(bytes: ByteArray, idx: Int): Boolean {
+    return if (bytes.size < (idx + 4)) false
+        else bytes.sliceArray((idx + 1)..(idx + 3)).contentEquals(byteArrayOf(LF, CR, LF))
+}
+
 fun findEmptyLine(bytes: ByteArray): Int {
     var offset = 0
     while (true) {
-        val idx = findCrIndex(bytes, offset)
-        if (idx == -1 || (idx + 3) >= bytes.size)
+        val idx = findCr(bytes, offset)
+        if (idx == -1)
             return -1
-
-        if (bytes[idx + 1] == LF && bytes[idx + 2] == CR && bytes[idx + 3] == LF)
+        if (hasNextLfCrLf(bytes, idx))
             return idx
 
         offset = idx + 1
@@ -173,8 +177,8 @@ fun splitMail(bytes: ByteArray): Pair<ByteArray, ByteArray>? {
     if (idx == -1)
         return null
 
-    val header = bytes.copyOfRange(0, idx)
-    val body = bytes.copyOfRange(idx + EMPTY_LINE.size, bytes.size)
+    val header = bytes.sliceArray(0 until idx)
+    val body = bytes.sliceArray((idx + EMPTY_LINE.size) until bytes.size)
     return Pair(header, body)
 }
 
