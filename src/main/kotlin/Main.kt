@@ -15,7 +15,7 @@ import com.beust.klaxon.JsonObject
 import com.beust.klaxon.Parser
 import kotlin.reflect.KFunction1
 
-const val VERSION = 1.5
+const val VERSION = 1.6
 
 const val CR = '\r'.toByte()
 const val LF = '\n'.toByte()
