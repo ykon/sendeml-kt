@@ -24,11 +24,8 @@ const val HTAB = '\t'.toByte()
 const val CRLF = "\r\n"
 
 fun findIndex(buf: ByteArray, value: Byte, offset: Int): Int {
-    for (i in offset until buf.size) {
-        if (buf[i] == value)
-            return i
-    }
-    return -1
+    val idx = buf.sliceArray(offset..buf.lastIndex).indexOf(value)
+    return if (idx == -1) idx else idx + offset
 }
 
 fun findCr(bytes: ByteArray, offset: Int): Int {
@@ -52,7 +49,9 @@ fun findAllLf(bytes: ByteArray): List<Int> {
     }
 }
 
-fun getLines(bytes: ByteArray): List<ByteArray> {
+typealias Lines = List<ByteArray>
+
+fun getLines(bytes: ByteArray): Lines {
     var offset = 0
     return findAllLf(bytes).plus(bytes.lastIndex).map {
         val line = bytes.sliceArray(offset..it)
@@ -68,10 +67,8 @@ fun matchHeader(line: ByteArray, header: ByteArray): Boolean {
     if (header.isEmpty())
         throw Exception("header is empty")
 
-    if (line.size < header.size)
-        return false
-
-    return line.sliceArray(header.indices).contentEquals(header)
+    return if (line.size < header.size) false
+        else line.sliceArray(header.indices).contentEquals(header)
 }
 
 fun isDateLine(line: ByteArray): Boolean {
@@ -99,7 +96,7 @@ fun isNotUpdate(updateDate: Boolean, updateMessageId: Boolean): Boolean {
     return !updateDate && !updateMessageId
 }
 
-fun concatBytes(bytesList: Iterable<ByteArray>): ByteArray {
+fun concatBytes(bytesList: Lines): ByteArray {
     val buf = ByteArray(bytesList.sumBy { it.size })
     var offset = 0
     for (b in bytesList) {
@@ -117,7 +114,7 @@ fun isFirstWsp(bytes: ByteArray): Boolean {
     return isWsp(bytes.firstOrNull() ?: 0)
 }
 
-private fun replaceLine(lines: List<ByteArray>, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): List<ByteArray> {
+private fun replaceLine(lines: Lines, matchLine: (ByteArray) -> Boolean, makeLine: () -> String): Lines {
     val idx = lines.indexOfFirst(matchLine)
     if (idx == -1)
         return lines
@@ -129,28 +126,27 @@ private fun replaceLine(lines: List<ByteArray>, matchLine: (ByteArray) -> Boolea
     return p1 + p2 + p3
 }
 
-fun replaceDateLine(lines: List<ByteArray>): List<ByteArray> {
+fun replaceDateLine(lines: Lines): Lines {
     return replaceLine(lines, ::isDateLine, ::makeNowDateLine)
 }
 
-fun replaceMessageIdLine(lines: List<ByteArray>): List<ByteArray> {
+fun replaceMessageIdLine(lines: Lines): Lines {
     return replaceLine(lines, ::isMessageIdLine, ::makeRandomMessageIdLine)
 }
 
 fun replaceHeader(header: ByteArray, updateDate: Boolean, updateMessageId: Boolean): ByteArray {
     val lines = getLines(header)
-    val newLines = when (Pair(updateDate, updateMessageId)) {
+    return concatBytes(when (Pair(updateDate, updateMessageId)) {
         Pair(true, true) -> replaceMessageIdLine(replaceDateLine(lines))
         Pair(true, false) -> replaceDateLine(lines)
         Pair(false, true) -> replaceMessageIdLine(lines)
         else -> lines
-    }
-    return concatBytes(newLines)
+    })
 }
 
 fun hasNextLfCrLf(bytes: ByteArray, idx: Int): Boolean {
     return if (bytes.size < (idx + 4)) false
-        else bytes.sliceArray((idx + 1)..(idx + 3)).contentEquals(byteArrayOf(LF, CR, LF))
+        else bytes.sliceArray((idx + 1) until (idx + 4)).contentEquals(byteArrayOf(LF, CR, LF))
 }
 
 fun findEmptyLine(bytes: ByteArray): Int {
@@ -178,7 +174,7 @@ fun splitMail(bytes: ByteArray): Pair<ByteArray, ByteArray>? {
         return null
 
     val header = bytes.sliceArray(0 until idx)
-    val body = bytes.sliceArray((idx + EMPTY_LINE.size) until bytes.size)
+    val body = bytes.sliceArray((idx + EMPTY_LINE.size)..bytes.lastIndex)
     return Pair(header, body)
 }
 
